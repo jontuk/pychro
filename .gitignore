@@ -1,0 +1,6 @@
+*test-files*/
+__pycache__
+.idea
+
+libpychroc/libpychroc.o
+libpychroc/libpychroc.so
