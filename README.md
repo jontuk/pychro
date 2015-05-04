@@ -63,8 +63,14 @@ It expects messages formed of an int, string and double.
 
 
 
-- - -
+### Deficiencies
 
-This level of functionality and performance serves me well in a number of projects 
+This level of functionality and performance serves me well in a number of projects. However there are a number of
+ things which should be improved, including:
+ 
+- Proper distutils setup.py build, currently it packages some ad-hoc binaries I have built
+- Support non-default setting values
+- Some testing of read/writing concurrently with Java applications
+- More extensive coverage of the OpenHFT Chronicle functionality
 
-\- Jon (<emailto:jon@jpt.me.uk>)
+Jon (<jon@jpt.me.uk>)
