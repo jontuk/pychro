@@ -1,5 +1,7 @@
 # Pychro
 
+This project is hosted at <https://github.com/jontuk/pychro>
+
 ### Introduction
 
 Pychro is a Python library for accessing 'Chronicle' message journals created by the OpenHFT Chronicle-Queue Java project 
@@ -73,4 +75,4 @@ This level of functionality and performance serves me well in a number of projec
 - Some testing of read/writing concurrently with Java applications
 - More extensive coverage of the OpenHFT Chronicle functionality
 
-Jon (<jon@jpt.me.uk>)
+Jon
