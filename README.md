@@ -1,5 +1,7 @@
 # Pychro
 
+### Memory-mapped message journal in Python
+
 This project is hosted at <https://github.com/jontuk/pychro>
 
 ### Introduction
@@ -74,5 +76,7 @@ This level of functionality and performance serves me well in a number of projec
 - Support non-default setting values
 - Some testing of read/writing concurrently with Java applications
 - More extensive coverage of the OpenHFT Chronicle functionality
+
+Enjoy!
 
 Jon
