@@ -45,8 +45,7 @@ class VanillaChronicleReader:
                 self._thread_id_bits = 16
             else:
                 with open('/proc/sys/kernel/pid_max') as fh:
-                    binstr = str(bin(int(fh.read().strip())))
-                    self._thread_id_bits = len(binstr) - binstr.find('1') - 1
+                    self._thread_id_bits = VanillaChronicleReader.get_thread_id_bits(int(fh.read().strip()))
 
         self._base_dir = base_dir
         self._index_data_offset_bits = 64 - self._thread_id_bits
@@ -90,6 +89,15 @@ class VanillaChronicleReader:
 
     def __exit__(self):
         self.close()
+
+    @staticmethod
+    def get_thread_id_bits(pid_max):
+        i = 0
+        pid_max -= 1
+        while pid_max:
+            pid_max = pid_max >> 1
+            i += 1
+        return i
 
     @staticmethod
     def to_full_index(date, index):

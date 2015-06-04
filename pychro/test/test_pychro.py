@@ -85,6 +85,52 @@ class WriteOMThread(threading.Thread):
 
 
 class TestThreadIdBits(unittest.TestCase):
+
+    # 2**-1
+
+    def test_pid_max_16383(self):
+        self.with_pid_max(16383, 14)
+
+    def test_pid_max_32767(self):
+        self.with_pid_max(32767, 15)
+
+    def test_pid_max_65535(self):
+        self.with_pid_max(65535, 16)
+
+    def test_pid_max_131071(self):
+        self.with_pid_max(131071, 17)
+
+    # 2**
+
+    def test_pid_max_16384(self):
+        self.with_pid_max(16384, 14)
+
+    def test_pid_max_32768(self):
+        self.with_pid_max(32768, 15)
+
+    def test_pid_max_65536(self):
+        self.with_pid_max(65536, 16)
+
+    def test_pid_max_131072(self):
+        self.with_pid_max(131072, 17)
+
+    # 2**+1, increase in bits
+
+    def test_pid_max_16385(self):
+        self.with_pid_max(16385, 15)
+
+    def test_pid_max_32769(self):
+        self.with_pid_max(32769, 16)
+
+    def test_pid_max_65537(self):
+        self.with_pid_max(65537, 17)
+
+    def test_pid_max_131073(self):
+        self.with_pid_max(131073, 18)
+
+    def with_pid_max(self, pid_max, expected_bits):
+        self.assertEqual(pychro.VanillaChronicleReader.get_thread_id_bits(pid_max), expected_bits)
+
     def test_14(self):
         self.with_bits(14)
 
