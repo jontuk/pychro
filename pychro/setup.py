@@ -1,11 +1,11 @@
 from distutils.core import setup
 
 setup(name='pychro',
-      version='0.4',
+      version='0.5',
       packages=['pychro'],
       package_data={'pychro':['libpychroc.so', 'PychroCLib.dll']},
       author='Jon Turner',
-      description='Chronicle-Queue message journal access',
+      description='Memory-mapped message journal',
       url='https://github.com/jontuk/pychro',
       license='Apache 2.0',
       classifiers=[ 'Development Status :: 3 - Alpha',
