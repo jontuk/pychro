@@ -33,6 +33,12 @@ class Appender:
         self._max_msg_size = max_msg_size
         self._start_date = None
 
+    def fill(self, size):
+        self._start()
+        if self._pos + size >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        self._pos += size
+
     def write_byte(self, val):
         assert val < 256
         self._start()
@@ -81,6 +87,21 @@ class Appender:
         mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+4] = struct.pack('i', val)
         self._pos += 4
+
+    # will add filler to fixed_size if set
+    # else if serialises to larger, is an error
+    def write_fixed_string(self, val, size):
+        start_pos = self._start()
+        encoded = val.encode()
+        l = len(encoded)
+        self.write_stopbit(l)
+        if self._pos - start_pos + l >= size:
+            raise pychro.InvalidArgumentError
+        if self._pos + l >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
+        mm[self._pos:self._pos+l] = encoded
+        self._pos += size
 
     def write_string(self, val):
         self._start()

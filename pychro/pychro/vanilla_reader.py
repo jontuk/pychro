@@ -307,6 +307,9 @@ class RawByteReader():
     def get_offset(self):
         return self._offset
 
+    def get_bytes(self):
+        return self._bytes
+
     def set_offset(self, offset):
         self._offset = offset
 
