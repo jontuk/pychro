@@ -31,7 +31,7 @@ import shutil
 import tempfile
 
 
-sys.path.append(os.path.split(os.path.dirname(__file__))[0])
+sys.path = [os.path.split(os.path.dirname(__file__))[0]] + sys.path
 import pychro
 
 ONLY_QUICK_TESTS = os.environ.get('PYCHRO_QUICK_TESTS', '0') == '1'
