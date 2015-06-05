@@ -156,6 +156,8 @@ class TestThreadIdBits(unittest.TestCase):
 
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path, thread_id_bits=thread_id_bits)
         self.assertEqual(1.2345, self.read_chron.next_reader().read_double())
+        self.write_chron.close()
+        self.read_chron.close()
 
 
 
@@ -202,6 +204,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual((datetime.date(2015, 1, 1), 2),
                          (pychro.VanillaChronicleReader.from_full_index(self.read_chron.get_index())))
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow,
                                                         date=datetime.date(2015, 1, 2))
@@ -216,6 +219,7 @@ class TestWriteOverMidnight(unittest.TestCase):
                          (pychro.VanillaChronicleReader.from_full_index(self.read_chron.get_index())))
 
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow)
 
@@ -232,6 +236,9 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(4, self.read_chron.next_reader().read_int())
         self.read_chron.set_index(18071573114126337)
         self.assertEqual(2, self.read_chron.next_reader().read_int())
+
+        self.read_chron.close()
+        self.write_chron.close()
 
     def test_same_appender(self):
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path,
@@ -256,6 +263,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(1, self.read_chron.next_reader().read_int())
         self.assertEqual(2, self.read_chron.next_reader().read_int())
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow,
                                                         date=datetime.date(2015, 1, 2))
@@ -263,6 +271,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(3, self.read_chron.next_reader().read_int())
         self.assertEqual(4, self.read_chron.next_reader().read_int())
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow)
 
@@ -270,6 +279,9 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(2, self.read_chron.next_reader().read_int())
         self.assertEqual(3, self.read_chron.next_reader().read_int())
         self.assertEqual(4, self.read_chron.next_reader().read_int())
+
+        self.read_chron.close()
+        self.write_chron.close()
 
 
     def test_multi_thread(self):
@@ -304,6 +316,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         for i in range(self.num_threads):
             for j in range(self.num_msgs):
                 self.assertEqual(ints.__contains__((i+1)*1000+j), True)
+        self.read_chron.close()
 
 
 class MultiWriteChronThread(threading.Thread):
@@ -435,6 +448,7 @@ class TestWriteChron(unittest.TestCase):
         for i in range(n):
             reader = self.read_chron.next_reader()
             self.assertEqual(i+10, reader.read_int())
+        self.write_chron.close()
 
     def test_write_multi_index(self):
         n = TEST_SIZE*3
@@ -460,7 +474,7 @@ class TestWriteChron(unittest.TestCase):
         except pychro.InvalidArgumentError:
             pass
         reader = self.read_chron.next_reader()
-        self.assertEquals('abc', reader.read_fixed_string(10))
+        self.assertEqual('abc', reader.read_fixed_string(10))
         reader.advance(15)
         for i in range(15):
             self.assertEquals(0, reader.read_byte())
@@ -818,6 +832,7 @@ class TestPychroReader(unittest.TestCase):
             chronicle.set_start_index_today()
         self.assertEqual(msg_nums[1], num_msgs)
         self.assertEqual(msg_nums[0], num_msgs)
+        chronicle.close()
 
     def test_files(self):
         for max_mem in [None, pychro.DATA_FILE_SIZE, 1024*1024*1024]:
@@ -868,6 +883,7 @@ class TestPychroReader(unittest.TestCase):
             chronicle.set_start_index_today()
         self.assertEqual(msg_nums[1], num_msgs_today)
         self.assertEqual(msg_nums[0], num_msgs_total)
+        chronicle.close()
 
 if __name__ == '__main__':
     unittest.main()
