@@ -483,49 +483,47 @@ class TestWriteChron(unittest.TestCase):
 
 class TestChronPerf(unittest.TestCase):
     def setUp(self):
+        self.n = TEST_SIZE
         self.tempdir = TempDir()
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
 
     def test_perf_str(self):
-        n = TEST_SIZE
-        strings = [str(random.random())*10 for _ in range(n)]
-        print('Average length %s' % (sum(map(len, strings))/n))
+        strings = [str(random.random())*10 for _ in range(self.n)]
+        print('Average length %s' % (sum(map(len, strings))/self.n))
         appender = self.write_chron.get_appender()
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             appender.write_string(strings[i])
             appender.finish()
         t = time.time() - t
-        print('Write %.2f strings/s' % (n/t))
+        print('Write %.2f strings/s' % (self.n/t))
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             reader = self.read_chron.next_reader()
             reader.read_string()
         t = time.time() - t
-        print('Read %.2f strings/s' % (n/t))
+        print('Read %.2f strings/s' % (self.n/t))
 
     def test_perf_int(self):
-        n = TEST_SIZE
         appender = self.write_chron.get_appender()
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             appender.write_int(i)
             appender.finish()
         t = time.time() - t
-        print('Write %.2f ints/s' % (n/t))
+        print('Write %.2f ints/s' % (self.n/t))
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             reader = self.read_chron.next_reader()
             reader.read_int()
         t = time.time() - t
-        print('Read %.2f ints/s' % (n/t))
+        print('Read %.2f ints/s' % (self.n/t))
 
     def test_perf_mixed(self):
-        n = TEST_SIZE
         appender = self.write_chron.get_appender()
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             appender.write_int(i+i)
             appender.write_string(str(self))
             appender.write_int(-i)
@@ -534,9 +532,9 @@ class TestChronPerf(unittest.TestCase):
             appender.write_int(-i)
             appender.finish()
         t = time.time() - t
-        print('Write %.2f msgs/s' % (n/t))
+        print('Write %.2f msgs/s' % (self.n/t))
         t = time.time()
-        for i in range(n):
+        for i in range(self.n):
             reader = self.read_chron.next_reader()
             self.assertEqual(i+i, reader.read_int())
             self.assertEqual(str(self), reader.read_string())
@@ -545,7 +543,7 @@ class TestChronPerf(unittest.TestCase):
             self.assertEqual('Hello'*10, reader.read_fixed_string(70))
             self.assertEqual(-i, reader.read_int())
         t = time.time() - t
-        print('Read %.2f msgs/s' % (n/t))
+        print('Read %.2f msgs/s' % (self.n/t))
 
     def tearDown(self):
         self.write_chron.close()
@@ -798,7 +796,6 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(2**63-1, reader.read_long())
         self.assertEqual(0, reader.read_long())
         self.assertEqual('\u1234', reader.read_string())
-
 
     def tearDown(self):
         self.read_chron.close()
