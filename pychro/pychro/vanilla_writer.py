@@ -33,6 +33,9 @@ class Appender:
         self._max_msg_size = max_msg_size
         self._start_date = None
 
+    def bytes_written(self):
+        return self._pos - self._start_pos
+
     def write_byte(self, val):
         assert val < 256
         self._start()
