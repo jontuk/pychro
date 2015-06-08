@@ -307,6 +307,9 @@ class RawByteReader():
     def get_offset(self):
         return self._offset
 
+    def get_bytes(self):
+        return self._bytes
+
     def set_offset(self, offset):
         self._offset = offset
 
@@ -363,9 +366,12 @@ class RawByteReader():
         l = self.read_stopbit()
         ret = self._bytes[self._offset: self._offset + l].decode()
         self._offset += l
-        # potentially there is some packing which we do not advance through
-        # the reader must use the get_offset/set_offset/advance methods in this case,
-        # with knowledge of the maximum size.
+        return ret
+
+    def read_fixed_string(self, size):
+        l = self.read_stopbit()
+        ret = self._bytes[self._offset: self._offset + l].decode()
+        self._offset += size
         return ret
 
     def peek_int(self):

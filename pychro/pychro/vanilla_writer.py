@@ -32,73 +32,94 @@ class Appender:
         self._start_pos = pos
         self._max_msg_size = max_msg_size
         self._start_date = None
+        self._mm = None
+
+    def fill(self, size, ch):
+        mm = self._start()
+        if self._pos + size >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        mm[self._pos:self._pos+size] = ch*size
+        self._pos += size
+
+    def advance(self, size):
+        self._start()
+        if self._pos + size >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        self._pos += size
 
     def bytes_written(self):
         return self._pos - self._start_pos
 
     def write_byte(self, val):
         assert val < 256
-        self._start()
+        mm = self._start()
         if self._pos + 1 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos] = val
         self._pos += 1
 
     def write_double(self, val):
-        self._start()
+        mm = self._start()
         if self._pos + 8 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+8] = struct.pack('d', val)
         self._pos += 8
 
     def write_boolean(self, val):
-        self._start()
+        mm = self._start()
         if self._pos + 1 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos] = 1 if val else 0
         self._pos += 1
 
     def write_short(self, val):
-        self._start()
+        mm = self._start()
         if self._pos + 2 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+2] = struct.pack('h', val)
         self._pos += 2
 
     def write_long(self, val):
-        self._start()
+        mm = self._start()
         if self._pos + 8 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+8] = struct.pack('q', val)
         self._pos += 8
 
     def write_int(self, val):
-        self._start()
+        mm = self._start()
         if self._pos + 4 >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+4] = struct.pack('i', val)
         self._pos += 4
 
+    # will add filler to fixed_size if set
+    # else if serialises to larger, is an error
+    def write_fixed_string(self, val, size):
+        mm = self._start()
+        start_pos = self._pos
+        encoded = val.encode()
+        l = len(encoded)
+        self.write_stopbit(l)
+        if self._pos - start_pos + l >= size:
+            raise pychro.InvalidArgumentError
+        if self._pos + l >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        mm[self._pos:self._pos+l] = encoded
+        self._pos += size
+
     def write_string(self, val):
-        self._start()
+        mm = self._start()
         encoded = val.encode()
         l = len(encoded)
         self.write_stopbit(l)
         if self._pos + l >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
         mm[self._pos:self._pos+l] = encoded
         self._pos += l
 
     def write_stopbit(self, val):
-        self._start()
-        mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
+        mm = self._start()
         while val < 0 or val > 127:
             mm[self._pos] = 0x80 | (val & 0x7f)
             self._pos += 1
@@ -114,24 +135,30 @@ class Appender:
                 self._pos = self._pos - self._start_pos + 4
                 self._start_pos = 4
                 self._filenum = 0
+                self._mm = None
+        if self._mm is None:
+            self._mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
+        return self._mm
 
     def finish(self):
         now_date = self._utcnow().date()
         if now_date != self._chronicle._date:
             # need to rewrite pos-start_pos bytes
-            bytes = self._chronicle._get_data_memory_map(self._filenum, self._tid)[self._start_pos:self._pos]
+            bytes = self._mm(self._filenum, self._tid)[self._start_pos:self._pos]
             if not self._chronicle._day_rollover(now_date):
                 raise pychro.PartialWriteLostOnRollover()
             self._pos = self._pos - self._start_pos + 4
             self._start_pos = 4
             self._filenum = 0
-            self._chronicle._get_data_memory_map(self._filenum, self._tid)[self._start_pos:self._pos] = bytes
+            self._mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
+            self._mm[self._start_pos:self._pos] = bytes
 
         self._chronicle._set_index(self._tid, self._filenum, self._start_pos)
 
         if self._pos + self._max_msg_size > pychro.DATA_FILE_SIZE:
             self._pos = 4
             self._filenum += 1
+            self._mm = None
         self._chronicle._set_appender_pos(self._tid, self._filenum, self._pos)
         self._start_pos = self._pos
         self._start_date = None

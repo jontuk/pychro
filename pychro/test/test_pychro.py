@@ -31,12 +31,12 @@ import shutil
 import tempfile
 
 
-sys.path.append(os.path.split(os.path.dirname(__file__))[0])
+sys.path = [os.path.split(os.path.dirname(__file__))[0]] + sys.path
 import pychro
 
-ONLY_QUICK_TESTS = os.environ.get('PYCHRO_QUICK_TESTS', '0') == '1'
+PYCHRO_QUICK_TESTS = os.environ.get('PYCHRO_QUICK_TESTS', '0') == '1'
 
-NUM_WORDS = 1024 if ONLY_QUICK_TESTS else 1024*1024
+TEST_SIZE = 1024 if PYCHRO_QUICK_TESTS else 1024*1024
 
 
 class TempDir:
@@ -156,6 +156,8 @@ class TestThreadIdBits(unittest.TestCase):
 
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path, thread_id_bits=thread_id_bits)
         self.assertEqual(1.2345, self.read_chron.next_reader().read_double())
+        self.write_chron.close()
+        self.read_chron.close()
 
 
 
@@ -202,6 +204,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual((datetime.date(2015, 1, 1), 2),
                          (pychro.VanillaChronicleReader.from_full_index(self.read_chron.get_index())))
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow,
                                                         date=datetime.date(2015, 1, 2))
@@ -216,6 +219,7 @@ class TestWriteOverMidnight(unittest.TestCase):
                          (pychro.VanillaChronicleReader.from_full_index(self.read_chron.get_index())))
 
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow)
 
@@ -232,6 +236,9 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(4, self.read_chron.next_reader().read_int())
         self.read_chron.set_index(18071573114126337)
         self.assertEqual(2, self.read_chron.next_reader().read_int())
+
+        self.read_chron.close()
+        self.write_chron.close()
 
     def test_same_appender(self):
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path,
@@ -256,6 +263,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(1, self.read_chron.next_reader().read_int())
         self.assertEqual(2, self.read_chron.next_reader().read_int())
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow,
                                                         date=datetime.date(2015, 1, 2))
@@ -263,6 +271,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(3, self.read_chron.next_reader().read_int())
         self.assertEqual(4, self.read_chron.next_reader().read_int())
 
+        self.read_chron.close()
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path,
                                                         utcnow=TestWriteOverMidnight.mock_utcnow)
 
@@ -270,6 +279,9 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(2, self.read_chron.next_reader().read_int())
         self.assertEqual(3, self.read_chron.next_reader().read_int())
         self.assertEqual(4, self.read_chron.next_reader().read_int())
+
+        self.read_chron.close()
+        self.write_chron.close()
 
 
     def test_multi_thread(self):
@@ -304,6 +316,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         for i in range(self.num_threads):
             for j in range(self.num_msgs):
                 self.assertEqual(ints.__contains__((i+1)*1000+j), True)
+        self.read_chron.close()
 
 
 class MultiWriteChronThread(threading.Thread):
@@ -345,7 +358,7 @@ class MultiReadChronThread(threading.Thread):
 class TestMultiWriteChron(unittest.TestCase):
     def setUp(self):
         self.tempdir = TempDir()
-        self.n = NUM_WORDS # exactly / 2*1024*1024 is a rather specific case as exactly fills up an index file
+        self.n = TEST_SIZE # exactly / 2*1024*1024 is a rather specific case as exactly fills up an index file
         self._write_chron1 = pychro.VanillaChronicleWriter(self.tempdir.path)
         self._write_chron2 = pychro.VanillaChronicleWriter(self.tempdir.path)
         self._read_chron1 = pychro.VanillaChronicleReader(self.tempdir.path)
@@ -389,40 +402,6 @@ class TestWriteChron(unittest.TestCase):
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
 
-    def test_perf_str(self):
-        n = NUM_WORDS
-        strings = [str(random.random())*10 for _ in range(n)]
-        print('Average length %s' % (sum(map(len, strings))/n))
-        appender = self.write_chron.get_appender()
-        t = time.time()
-        for i in range(n):
-            appender.write_string(strings[i])
-            appender.finish()
-        t = time.time() - t
-        print('Write %.2f strings/s' % (n/t))
-        t = time.time()
-        for i in range(n):
-            reader = self.read_chron.next_reader()
-            reader.read_string()
-        t = time.time() - t
-        print('Read %.2f strings/s' % (n/t))
-
-    def test_perf_int(self):
-        n = NUM_WORDS
-        appender = self.write_chron.get_appender()
-        t = time.time()
-        for i in range(n):
-            appender.write_int(i)
-            appender.finish()
-        t = time.time() - t
-        print('Write %.2f ints/s' % (n/t))
-        t = time.time()
-        for i in range(n):
-            reader = self.read_chron.next_reader()
-            reader.read_int()
-        t = time.time() - t
-        print('Read %.2f ints/s' % (n/t))
-
     def test_write_stop_start(self):
         n = 3
         for i in range(n):
@@ -435,9 +414,10 @@ class TestWriteChron(unittest.TestCase):
         for i in range(n):
             reader = self.read_chron.next_reader()
             self.assertEqual(i+10, reader.read_int())
+        self.write_chron.close()
 
     def test_write_multi_index(self):
-        n = NUM_WORDS*3
+        n = TEST_SIZE*3
         for i in range(n):
             appender = self.write_chron.get_appender()
             appender.write_int(i)
@@ -447,33 +427,127 @@ class TestWriteChron(unittest.TestCase):
             reader = self.read_chron.next_reader()
             self.assertEqual(i, reader.read_int())
 
+    def test_write_fixed_string(self):
+        appender = self.write_chron.get_appender()
+        appender.write_fixed_string('abc', 10)
+        appender.advance(15)
+        appender.fill(15, b'\0')
+        appender.write_int(123)
+        appender.finish()
+        try:
+            appender.write_fixed_string('abc', 2)
+            assert False
+        except pychro.InvalidArgumentError:
+            pass
+        reader = self.read_chron.next_reader()
+        self.assertEqual('abc', reader.read_fixed_string(10))
+        reader.advance(15)
+        for i in range(15):
+            self.assertEqual(0, reader.read_byte())
+        self.assertEqual(123, reader.read_int())
+        try:
+            self.read_chron.next_reader()
+            assert False
+        except pychro.NoData:
+            pass
+
     def test_write_multi_data(self):
-        for i in range(NUM_WORDS):
-            appender = self.write_chron.get_appender()
+        for i in range(TEST_SIZE):
+            if (i % 2) == 0:
+                appender = self.write_chron.get_appender()
             appender.write_int(i+i)
             appender.write_string(str(self))
             appender.write_int(-i)
             appender.finish()
             appender.write_int(0x7fffffff & i*i)
-            appender.write_string('Hello'*10)
+            appender.write_fixed_string('Hello'*10, 70)
             appender.write_int(-i)
             appender.finish()
-            appender.write_int(i+1)
+            if (i % 2) != 0:
+                appender.write_int(i+1)
         print('Writing done, reading..')
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             reader = self.read_chron.next_reader()
             self.assertEqual(i+i, reader.read_int())
             self.assertEqual(str(self), reader.read_string())
             self.assertEqual(-i, reader.read_int())
             reader = self.read_chron.next_reader()
             self.assertEqual(0x7fffffff & i*i, reader.read_int())
-            self.assertEqual('Hello'*10, reader.read_string())
+            self.assertEqual('Hello'*10, reader.read_fixed_string(70))
             self.assertEqual(-i, reader.read_int())
 
     def tearDown(self):
         self.write_chron.close()
         self.read_chron.close()
 
+
+class TestChronPerf(unittest.TestCase):
+    def setUp(self):
+        self.n = TEST_SIZE
+        self.tempdir = TempDir()
+        self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
+        self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
+
+    def test_perf_str(self):
+        strings = [str(random.random())*10 for _ in range(self.n)]
+        print('Average length %s' % (sum(map(len, strings))/self.n))
+        appender = self.write_chron.get_appender()
+        t = time.time()
+        for i in range(self.n):
+            appender.write_string(strings[i])
+            appender.finish()
+        t = time.time() - t
+        print('Write %.2f strings/s' % (self.n/t))
+        t = time.time()
+        for i in range(self.n):
+            reader = self.read_chron.next_reader()
+            reader.read_string()
+        t = time.time() - t
+        print('Read %.2f strings/s' % (self.n/t))
+
+    def test_perf_int(self):
+        appender = self.write_chron.get_appender()
+        t = time.time()
+        for i in range(self.n):
+            appender.write_int(i)
+            appender.finish()
+        t = time.time() - t
+        print('Write %.2f ints/s' % (self.n/t))
+        t = time.time()
+        for i in range(self.n):
+            reader = self.read_chron.next_reader()
+            reader.read_int()
+        t = time.time() - t
+        print('Read %.2f ints/s' % (self.n/t))
+
+    def test_perf_mixed(self):
+        appender = self.write_chron.get_appender()
+        t = time.time()
+        for i in range(self.n):
+            appender.write_int(i+i)
+            appender.write_string(str(self))
+            appender.write_int(-i)
+            appender.write_int(0x7fffffff & i*i)
+            appender.write_fixed_string('Hello'*10, 70)
+            appender.write_int(-i)
+            appender.finish()
+        t = time.time() - t
+        print('Write %.2f msgs/s' % (self.n/t))
+        t = time.time()
+        for i in range(self.n):
+            reader = self.read_chron.next_reader()
+            self.assertEqual(i+i, reader.read_int())
+            self.assertEqual(str(self), reader.read_string())
+            self.assertEqual(-i, reader.read_int())
+            self.assertEqual(0x7fffffff & i*i, reader.read_int())
+            self.assertEqual('Hello'*10, reader.read_fixed_string(70))
+            self.assertEqual(-i, reader.read_int())
+        t = time.time() - t
+        print('Read %.2f msgs/s' % (self.n/t))
+
+    def tearDown(self):
+        self.write_chron.close()
+        self.read_chron.close()
 
 class CMapThread(threading.Thread):
     def __init__(self, _id, data):
@@ -484,7 +558,7 @@ class CMapThread(threading.Thread):
 
     def run(self):
         offset = 0
-        while offset < NUM_WORDS*8:
+        while offset < TEST_SIZE*8:
             if pychro.try_atomic_write_mmap(self.data, offset, 0, self.id) == 0:
                 self.writes += 1
             offset += 8
@@ -494,7 +568,7 @@ class TestCMapWrite(unittest.TestCase):
     def setUp(self):
         self.tempfile = TempFile()
         with open(self.tempfile.path, 'wb') as fh:
-            fh.write(b'\000'*8*NUM_WORDS)
+            fh.write(b'\000'*8*TEST_SIZE)
             fh.close()
         self.open()
 
@@ -503,24 +577,24 @@ class TestCMapWrite(unittest.TestCase):
 
     def open(self):
         self.fh = open(self.tempfile.path, 'r+b')
-        self.data = pychro.open_write_mmap(self.fh, NUM_WORDS*8)
+        self.data = pychro.open_write_mmap(self.fh, TEST_SIZE*8)
 
     def close(self):
-        pychro.close_mmap(self.data, NUM_WORDS*8)
+        pychro.close_mmap(self.data, TEST_SIZE*8)
         self.data = None
         self.fh.close()
         self.fh = None
 
     def test_read_words(self):
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             self.assertEqual(pychro.read_mmap(self.data, i*8), 0)
 
     def test_write_words(self):
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             pychro.try_atomic_write_mmap(self.data, i*8, pychro.read_mmap(self.data, i*8), i)
         self.close()
         self.open()
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             self.assertEqual(pychro.read_mmap(self.data, i*8), i)
 
     def test_processes(self):
@@ -528,7 +602,7 @@ class TestCMapWrite(unittest.TestCase):
 
     def test_threads(self):
         for i in range(2):
-            for j in range(NUM_WORDS):
+            for j in range(TEST_SIZE):
                 pychro.try_atomic_write_mmap(self.data, j*8, pychro.read_mmap(self.data, j*8), 0)
             ts = []
             num_threads = 2
@@ -541,15 +615,15 @@ class TestCMapWrite(unittest.TestCase):
             for t in ts:
                 t.join()
                 tcount[t.id] = t.writes
-            for w in range(NUM_WORDS):
+            for w in range(TEST_SIZE):
                 v = pychro.read_mmap(self.data, w*8)
                 acount[v] = acount.get(v, 0)+1
 
             self.assertEqual(len(tcount), len(acount))
-            self.assertEqual(NUM_WORDS, sum(acount.values()))
+            self.assertEqual(TEST_SIZE, sum(acount.values()))
             for j in range(1, 1+num_threads):
                 self.assertEqual(acount.get(j), tcount.get(j))
-            self.assertEqual(NUM_WORDS, sum(tcount.values()))
+            self.assertEqual(TEST_SIZE, sum(tcount.values()))
 
 
 class MMapThread(threading.Thread):
@@ -563,7 +637,7 @@ class MMapThread(threading.Thread):
     def run(self):
         packedid = struct.pack('Q', self.id)
         offset = 0
-        while offset < NUM_WORDS*8:
+        while offset < TEST_SIZE*8:
             self.lock.acquire()
             if self.mm[offset:offset+8] == b'\x00\x00\x00\x00\x00\x00\x00\x00':
                 self.mm[offset:offset+8] = packedid
@@ -576,7 +650,7 @@ class TestMMapWrite(unittest.TestCase):
     def setUp(self):
         self.tempfile = TempFile()
         with open(self.tempfile.path, 'wb') as fh:
-            fh.write(b'\000'*8*NUM_WORDS)
+            fh.write(b'\000'*8*TEST_SIZE)
             fh.close()
         self.open()
 
@@ -605,11 +679,11 @@ class TestMMapWrite(unittest.TestCase):
             self.assertEqual(self.mm[i], i % 256)
 
     def test_write_words(self):
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             self.mm[i*8:i*8+8] = struct.pack('Q', i)
         self.close()
         self.open()
-        for i in range(NUM_WORDS):
+        for i in range(TEST_SIZE):
             self.assertEqual(struct.unpack('Q', self.mm[i*8:i*8+8])[0], i)
 
     def test_processes(self):
@@ -619,7 +693,7 @@ class TestMMapWrite(unittest.TestCase):
         lock = multiprocessing.Lock()
         for i in range(2):
             ts = []
-            self.mm[0:NUM_WORDS*8] = b'\x00' * NUM_WORDS * 8
+            self.mm[0:TEST_SIZE*8] = b'\x00' * TEST_SIZE * 8
             num_threads = 2
             for i in range(1, num_threads+1):
                 t = MMapThread(i, self.mm, lock)
@@ -630,15 +704,15 @@ class TestMMapWrite(unittest.TestCase):
             for t in ts:
                 t.join()
                 tcount[t.id] = t.writes
-            for w in range(NUM_WORDS):
+            for w in range(TEST_SIZE):
                 v = struct.unpack('Q', self.mm[w*8:w*8+8])[0]
                 acount[v] = acount.get(v, 0)+1
 
             self.assertEqual(len(tcount), len(acount))
-            self.assertEqual(NUM_WORDS, sum(acount.values()))
+            self.assertEqual(TEST_SIZE, sum(acount.values()))
             for i in range(1, 1+num_threads):
                 self.assertEqual(acount.get(i), tcount.get(i))
-            self.assertEqual(NUM_WORDS, sum(tcount.values()))
+            self.assertEqual(TEST_SIZE, sum(tcount.values()))
 
 
 class TestMMap(unittest.TestCase):
@@ -723,7 +797,6 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(0, reader.read_long())
         self.assertEqual('\u1234', reader.read_string())
 
-
     def tearDown(self):
         self.read_chron.close()
 
@@ -750,7 +823,7 @@ class TestPychroReader(unittest.TestCase):
                     zfh.extractall(base)
 
         self._indexes = [(r'test-files-a/PychroTestChron1.Small', 10, datetime.date(2015, 2, 21))]
-        if not ONLY_QUICK_TESTS:
+        if not PYCHRO_QUICK_TESTS:
             self._indexes += [(r'test-files-c/PychroTestIndex', 3000000, datetime.date(2015, 2, 23))]
 
         self._files = [
@@ -794,11 +867,12 @@ class TestPychroReader(unittest.TestCase):
             chronicle.set_start_index_today()
         self.assertEqual(msg_nums[1], num_msgs)
         self.assertEqual(msg_nums[0], num_msgs)
+        chronicle.close()
 
     def test_files(self):
         for max_mem in [None, pychro.DATA_FILE_SIZE, 1024*1024*1024]:
             for fn, msgs_total, msgs_today, _date in self._files:
-                if not ONLY_QUICK_TESTS or msgs_total < 100:
+                if not PYCHRO_QUICK_TESTS or msgs_total < 100:
                     t = time.time()
                     self.do_file_test(fn, msgs_total, msgs_today, max_mem, _date)
                     t = time.time() - t
@@ -844,6 +918,7 @@ class TestPychroReader(unittest.TestCase):
             chronicle.set_start_index_today()
         self.assertEqual(msg_nums[1], num_msgs_today)
         self.assertEqual(msg_nums[0], num_msgs_total)
+        chronicle.close()
 
 if __name__ == '__main__':
     unittest.main()
