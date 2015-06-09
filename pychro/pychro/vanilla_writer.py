@@ -28,8 +28,8 @@ class Appender:
         self._utcnow = utcnow
         self._chronicle = chronicle
         self._filenum = filenum
-        self._pos = pos
-        self._start_pos = pos
+        self._pos = pos + 4
+        self._start_pos = self._pos
         self._max_msg_size = max_msg_size
         self._start_date = None
         self._mm = None
@@ -132,8 +132,8 @@ class Appender:
             self._start_date = self._utcnow().date()
             if self._start_date != self._chronicle._date:
                 self._chronicle._day_rollover(self._start_date)
-                self._pos = self._pos - self._start_pos + 4
-                self._start_pos = 4
+                self._pos = 4
+                self._start_pos = self._pos
                 self._filenum = 0
                 self._mm = None
         if self._mm is None:
@@ -141,24 +141,28 @@ class Appender:
         return self._mm
 
     def finish(self):
+        length = self._pos - self._start_pos
         now_date = self._utcnow().date()
         if now_date != self._chronicle._date:
             # need to rewrite pos-start_pos bytes
             bytes = self._mm(self._filenum, self._tid)[self._start_pos:self._pos]
             if not self._chronicle._day_rollover(now_date):
                 raise pychro.PartialWriteLostOnRollover()
-            self._pos = self._pos - self._start_pos + 4
+            self._pos = length + 4
             self._start_pos = 4
             self._filenum = 0
             self._mm = self._chronicle._get_data_memory_map(self._filenum, self._tid)
             self._mm[self._start_pos:self._pos] = bytes
 
+        self._mm[self._start_pos-4:self._start_pos] = struct.pack('i', ~length)
+
         self._chronicle._set_index(self._tid, self._filenum, self._start_pos)
 
         if self._pos + self._max_msg_size > pychro.DATA_FILE_SIZE:
-            self._pos = 4
+            self._pos = 0
             self._filenum += 1
             self._mm = None
+        self._pos += 4
         self._chronicle._set_appender_pos(self._tid, self._filenum, self._pos)
         self._start_pos = self._pos
         self._start_date = None
