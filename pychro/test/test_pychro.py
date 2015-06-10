@@ -435,10 +435,10 @@ class TestWriteChron(unittest.TestCase):
         appender.write_int(123)
         appender.finish()
         try:
-            appender.write_fixed_string('abc', 2)
-            assert False
+             appender.write_fixed_string('abc', 2)
+             assert False
         except pychro.InvalidArgumentError:
-            pass
+             pass
         reader = self.read_chron.next_reader()
         self.assertEqual('abc', reader.read_fixed_string(10))
         reader.advance(15)
