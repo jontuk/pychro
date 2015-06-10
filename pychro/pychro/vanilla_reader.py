@@ -369,9 +369,10 @@ class RawByteReader():
         return ret
 
     def read_fixed_string(self, size):
+        start_pos = self._offset
         l = self.read_stopbit()
         ret = self._bytes[self._offset: self._offset + l].decode()
-        self._offset += size
+        self._offset = start_pos + size
         return ret
 
     def peek_int(self):

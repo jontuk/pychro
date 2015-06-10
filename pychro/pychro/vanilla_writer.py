@@ -106,7 +106,7 @@ class Appender:
         if self._pos + l >= pychro.DATA_FILE_SIZE:
             raise pychro.NoSpace
         mm[self._pos:self._pos+l] = encoded
-        self._pos += l
+        self._pos = start_pos + size
 
     def write_string(self, val):
         mm = self._start()
