@@ -193,7 +193,10 @@ class VanillaChronicleReader:
 
         if self._max_maps and len(self._data_mms) > self._max_maps:
             try:
-                self._data_mms.popitem(last=False)[1].close()
+                filenum_thread, mm = self._data_mms.popitem(last=False)
+                mm.close()
+                self._data_fhs[filenum_thread].close()
+                del self._data_fhs[filenum_thread]
             except ReferenceError:
                 pass
         return fm
