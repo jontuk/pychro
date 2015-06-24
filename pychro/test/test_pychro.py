@@ -57,6 +57,58 @@ class TempFile:
             os.remove(self.path)
 
 
+class TestNewAppenderFiles(unittest.TestCase):
+
+    def setUp(self):
+        self.tempdir = TempDir()
+
+    def test_new_appender1(self):
+
+        for i in range(3):
+            chron = pychro.VanillaChronicleWriter(self.tempdir.path)
+            a = chron.get_appender()
+            a.write_int(i)
+            a.write_int(i*i)
+            a.write_int(i*i*i)
+            a.finish()
+            chron.close()
+        # this should return 2, 1 but there appears to be a bug
+        # creating additional data files for the first appender
+        # of a VanillaChronicleWriter
+        self.assertEqual((2, 3), self.count_files())
+
+    def test_new_appender2(self):
+
+        for i in range(3):
+            chron = pychro.VanillaChronicleWriter(self.tempdir.path)
+            a = chron.get_appender()
+            a.write_int(i)
+            a.write_int(i*i)
+            a.write_int(i*i*i)
+            a.finish()
+            a = chron.get_appender()
+            a.write_int(i)
+            a.write_int(i*i)
+            a.write_int(i*i*i)
+            a.finish()
+            chron.close()
+        self.assertEqual((2, 3), self.count_files())
+
+    def count_files(self):
+        i = 0
+        d = 0
+        for root, dirs, files in os.walk(self.tempdir.path):
+            for f in files:
+                if f.startswith('index'):
+                    i += 1
+                elif f.startswith('data'):
+                    d += 1
+        return i, d
+
+    def tearDown(self):
+        pass
+
+
 class WriteOMThread(threading.Thread):
     def __init__(self, path, id, num_msgs, initial_sleep, write_sleep):
         super().__init__()
@@ -408,12 +460,35 @@ class TestWriteChron(unittest.TestCase):
             appender = self.write_chron.get_appender()
             appender.write_int(i+10)
             appender.finish()
+            appender = self.write_chron.get_appender()
+            appender.write_int(i*i+10)
+            appender.finish()
             self.write_chron.close()
             self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
         print('Writing done, reading..')
         for i in range(n):
             reader = self.read_chron.next_reader()
             self.assertEqual(i+10, reader.read_int())
+            reader = self.read_chron.next_reader()
+            self.assertEqual(i*i+10, reader.read_int())
+        self.write_chron.close()
+
+    def test_write_stop_start_same_app(self):
+        n = 3
+        for i in range(n):
+            appender = self.write_chron.get_appender()
+            appender.write_int(i+10)
+            appender.finish()
+            appender.write_int(i*i+10)
+            appender.finish()
+            self.write_chron.close()
+            self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
+        print('Writing done, reading..')
+        for i in range(n):
+            reader = self.read_chron.next_reader()
+            self.assertEqual(i+10, reader.read_int())
+            reader = self.read_chron.next_reader()
+            self.assertEqual(i*i+10, reader.read_int())
         self.write_chron.close()
 
     def test_write_multi_index(self):
