@@ -249,7 +249,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
             fh = open(fn, 'r+b')
         else:
             fh = open(fn, 'w+b')
-            fh.write(b'\000'*pychro.INDEX_FILE_SIZE)
+            fh.truncate(pychro.INDEX_FILE_SIZE)
             fh.flush()
         self._index_fh += [fh]
         self._index_mm += [pychro.open_write_mmap(fh, pychro.INDEX_FILE_SIZE)]
@@ -260,7 +260,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
             fh = open(fn, 'r+b')
         else:
             fh = open(fn, 'w+b')
-            fh.write(b'\x00'*pychro.DATA_FILE_SIZE)
+            fh.truncate(pychro.DATA_FILE_SIZE)
         return fh
 
     def _open_data_memory_map(self, filenum, thread):
