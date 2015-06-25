@@ -87,7 +87,7 @@ class VanillaChronicleReader:
     def __str__(self):
         return '<VanillaChronicleReader dir:%s idx:%s>' % (self._cycle_dir, self._index)
 
-    def __exit__(self):
+    def __del__(self):
         self.close()
 
     @staticmethod
