@@ -335,7 +335,6 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.read_chron.close()
         self.write_chron.close()
 
-
     def test_multi_thread(self):
         self.num_threads = 2 # 3 could be racey...
         self.num_msgs = 6
@@ -672,9 +671,6 @@ class TestCMapWrite(unittest.TestCase):
         for i in range(TEST_SIZE):
             self.assertEqual(pychro.read_mmap(self.data, i*8), i)
 
-    def test_processes(self):
-        pass
-
     def test_threads(self):
         for i in range(2):
             for j in range(TEST_SIZE):
@@ -915,6 +911,10 @@ class TestPychroReader(unittest.TestCase):
             (r'test-files-b/PychroTestChron3.Small2day', 20, 10, None)
         ]
 
+    def test_written_previous_day(self):
+        reader = pychro.VanillaChronicleReader(r'test-files-a/PychroTestChron1.Small')
+        self.assertEqual(0x40670000000000, reader.get_index())
+
     def test_indexes(self):
         for fn, msgs_total, _date in self._indexes:
             t = time.time()
@@ -994,6 +994,28 @@ class TestPychroReader(unittest.TestCase):
         self.assertEqual(msg_nums[1], num_msgs_today)
         self.assertEqual(msg_nums[0], num_msgs_total)
         chronicle.close()
+
+
+class TestGetIndexChronicle(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = TempDir()
+
+    def test_empty(self):
+        reader = pychro.VanillaChronicleReader(self.tempdir.path)
+        self.assertRaises(pychro.NoData, reader.get_index)
+
+    def test_written_today(self):
+        writer = pychro.VanillaChronicleWriter(self.tempdir.path)
+        appender = writer.get_appender()
+        appender.write_byte(1)
+        appender.finish()
+        idx = writer.get_index()
+        self.assertEqual(True, idx > 0x40000000000000)
+        reader = pychro.VanillaChronicleReader(self.tempdir.path)
+        self.assertEqual(idx, reader.get_index())
+
+    def tearDown(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

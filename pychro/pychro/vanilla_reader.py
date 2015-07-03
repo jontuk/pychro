@@ -254,6 +254,8 @@ class VanillaChronicleReader:
         self._full_index_base = None
 
     def get_index(self):
+        if self._full_index_base is None:
+            raise pychro.NoData
         return self._index + self._full_index_base
 
     def next_index(self):
