@@ -223,7 +223,10 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         assert self._date == self._utcnow().date()
 
         index_val = (tid << (64-self._thread_id_bits)) | (data_filenum << pychro.FILENUM_FROM_POS_SHIFT) | offset
-        self.set_end_index_today()
+
+        if self._index == 0:
+            self.set_end_index_today()
+
         while True:
             index_filenum, index_offset = divmod(self._index*8, pychro.INDEX_FILE_SIZE)
             # keep an extra one open
