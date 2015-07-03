@@ -168,6 +168,7 @@ class Appender:
         self._start_date = None
 
 
+
 class VanillaChronicleWriter(VanillaChronicleReader):
     def __init__(self, base_dir, polling_interval=None,
                  max_mapped_memory=pychro.DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
