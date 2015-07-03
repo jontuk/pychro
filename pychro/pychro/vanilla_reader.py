@@ -293,12 +293,28 @@ class VanillaChronicleReader:
         self.set_index(self.get_end_index_today())
 
     def get_end_index_today(self):
-        index = max(self._max_index, self._index)
+
+        # minimum currently known
+        low_idx = max(self._max_index, self._index)
+        if not self._get_index_value(low_idx):
+            return low_idx + self._full_index_base
+
+        # find the maximum possible
+        high_idx = pychro.ENTRIES_PER_INDEX_FILE-1
+        while self._get_index_value(high_idx):
+            high_idx += pychro.ENTRIES_PER_INDEX_FILE
+
         while True:
-            if not self._get_index_value(index) & self._index_data_offset_mask:
-                self._max_index = index
-                return self._max_index + self._full_index_base
-            index += 1
+            current_idx = (low_idx + high_idx) // 2
+            if self._get_index_value(current_idx):
+                low_idx = current_idx
+                if high_idx == low_idx + 1:
+                    break
+            else:
+                high_idx = current_idx
+                if low_idx == high_idx - 1:
+                    break
+        return high_idx + self._full_index_base
 
     def next_reader(self):
         return RawByteReader(*self.next_raw_bytes())
