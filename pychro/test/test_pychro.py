@@ -915,6 +915,16 @@ class TestPychroReader(unittest.TestCase):
         reader = pychro.VanillaChronicleReader(r'test-files-a/PychroTestChron1.Small')
         self.assertEqual(0x40670000000000, reader.get_index())
 
+    def test_get_end_index(self):
+        self.assertEqual(0x4067000000000a,
+                         pychro.VanillaChronicleReader(r'test-files-a/PychroTestChron1.Small').get_end_index_today())
+
+        self.assertEqual(0x406700000186a0,
+                         pychro.VanillaChronicleReader(r'test-files-a/PychroTestChron1.Large').get_end_index_today())
+
+        self.assertEqual(0x4067000000000a,
+                         pychro.VanillaChronicleReader(r'test-files-b/PychroTestChron3.Small2day').get_end_index_today())
+
     def test_indexes(self):
         for fn, msgs_total, _date in self._indexes:
             t = time.time()
