@@ -189,14 +189,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
                 os.makedirs(todays_dir)
             except FileExistsError:
                 pass
-        self._open_next_index()
-        self._open_next_index()
-        while True:
-            try:
-                filenum, pos, tid = self._next_position()
-                self._positions[tid] = (filenum+1, 4)
-            except pychro.NoData:
-                break
+        self.set_end_index_today()
 
     def _set_appender_pos(self, tid, filenum, pos):
         self._positions[tid] = (filenum, pos)
@@ -215,7 +208,6 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         self._positions = dict()
         self._cycle_dir = todays_dir
         self._open_next_index()
-        self._open_next_index()
         self._update_date_and_index_base(new_date)
         return ret
 
@@ -230,7 +222,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         while True:
             index_filenum, index_offset = divmod(self._index*8, pychro.INDEX_FILE_SIZE)
             # keep an extra one open
-            if len(self._index_mm) <= index_filenum+1:
+            if len(self._index_mm) <= index_filenum:
                 self._open_next_index()
             prev_index_val = pychro.read_mmap(self._index_mm[index_filenum], index_offset)
             if prev_index_val != 0:
@@ -288,7 +280,26 @@ class VanillaChronicleWriter(VanillaChronicleReader):
 
     def get_appender(self):
         tid = self._get_tid()
-        filenum, pos = self._positions.get(tid, (0, 4))
+
+        filenum_pos = self._positions.get(tid)
+        if filenum_pos:
+            filenum, pos = filenum_pos
+        else:
+            # search back looking for our thread id.
+            # although the writer can write with different threads, those same threads should not be
+            # writing to the same chronicle with a different writer.
+            filenum = 0
+            pos = 4
+            while self._index > 0:
+                self._index -= 1
+                # positions here are from the read perspective, need to advance to create
+                # appender with write pos
+                _filenum, _pos, _tid = self._next_position()
+                if _tid == tid:
+                    _pos, mm = self.get_raw_bytes(_filenum, _pos, _tid)
+                    pos = _pos + ~struct.unpack('i', mm[_pos-4:_pos])[0] + 4
+                    filenum = _filenum
+                    break
         return Appender(self, tid, filenum, pos, self._utcnow)
 
 

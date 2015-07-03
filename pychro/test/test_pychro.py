@@ -72,10 +72,10 @@ class TestNewAppenderFiles(unittest.TestCase):
             a.write_int(i*i*i)
             a.finish()
             chron.close()
-        # this should return 2, 1 but there appears to be a bug
+        # this should return 1, 1 but there appears to be a bug
         # creating additional data files for the first appender
         # of a VanillaChronicleWriter
-        self.assertEqual((2, 3), self.count_files())
+        self.assertEqual((1, 1), self.count_files())
 
     def test_new_appender2(self):
 
@@ -91,8 +91,13 @@ class TestNewAppenderFiles(unittest.TestCase):
             a.write_int(i*i)
             a.write_int(i*i*i)
             a.finish()
+            a = chron.get_appender()
+            a.write_int(i)
+            a.write_int(i*i)
+            a.write_int(i*i*i)
+            a.finish()
             chron.close()
-        self.assertEqual((2, 3), self.count_files())
+        self.assertEqual((1, 1), self.count_files())
 
     def count_files(self):
         i = 0
