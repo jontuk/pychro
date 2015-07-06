@@ -1,3 +1,4 @@
+*.pyc
 *test-files*/
 __pycache__
 .idea
