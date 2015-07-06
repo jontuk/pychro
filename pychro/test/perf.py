@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import test_pychro
 
 def main():
