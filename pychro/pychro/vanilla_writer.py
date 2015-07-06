@@ -291,10 +291,9 @@ class VanillaChronicleWriter(VanillaChronicleReader):
             filenum = 0
             pos = 4
             while self._index > 0:
-                self._index -= 1
                 # positions here are from the read perspective, need to advance to create
                 # appender with write pos
-                _filenum, _pos, _tid = self._next_position()
+                _filenum, _pos, _tid = self._prev_position_today()
                 if _tid == tid:
                     _pos, mm = self.get_raw_bytes(_filenum, _pos, _tid)
                     pos = _pos + ~struct.unpack('i', mm[_pos-4:_pos])[0] + 4

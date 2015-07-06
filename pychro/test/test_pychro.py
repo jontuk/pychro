@@ -555,6 +555,33 @@ class TestWriteChron(unittest.TestCase):
             self.assertEqual('Hello'*10, reader.read_fixed_string(70))
             self.assertEqual(-i, reader.read_int())
 
+    class WriteNewChronThread(threading.Thread):
+        def __init__(self, msg, path):
+            super().__init__()
+            self._path = path
+            self._msg = msg
+
+        def run(self):
+            write_chron2 = pychro.VanillaChronicleWriter(self._path)
+            appender = write_chron2.get_appender()
+            appender.write_string(self._msg)
+            appender.finish()
+            write_chron2.close()
+
+    def test_write_new_chron(self):
+        t1 = TestWriteChron.WriteNewChronThread('hello', self.tempdir.path)
+        t1.start()
+        t1.join()
+        appender = self.write_chron.get_appender()
+        appender.write_string('world')
+        appender.finish()
+        t2 = TestWriteChron.WriteNewChronThread('bonjour', self.tempdir.path)
+        t2.start()
+        t2.join()
+        self.assertEqual('hello', self.read_chron.next_reader().read_string())
+        self.assertEqual('world', self.read_chron.next_reader().read_string())
+        self.assertEqual('bonjour', self.read_chron.next_reader().read_string())
+
     def tearDown(self):
         self.write_chron.close()
         self.read_chron.close()

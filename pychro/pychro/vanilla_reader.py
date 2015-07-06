@@ -201,6 +201,20 @@ class VanillaChronicleReader:
                 pass
         return fm
 
+    def _prev_position_today(self):
+        while self._index > 0:
+            self._index -= 1
+
+            val = self._get_index_value(self._index)
+            pos = val & self._index_data_offset_mask
+
+            if pos:
+                filenum = (pos >> pychro.FILENUM_FROM_POS_SHIFT)
+                pos = pos & pychro.POS_MASK
+                thread = (val & self._thread_id_idx_mask) >> self._index_data_offset_bits
+                return filenum, pos, thread
+        raise pychro.NoData
+
     def _next_position(self):
         while True:
             val = self._get_index_value(self._index)
