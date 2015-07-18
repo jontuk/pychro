@@ -42,9 +42,12 @@ class VanillaChronicleReader:
         self._utcnow = utcnow
         self._thread_id_bits = thread_id_bits
         if self._thread_id_bits is None:
-            if not sys.platform == 'linux':
+            if sys.platform == 'windows':
                 self._thread_id_bits = 16
+            elif sys.platform == 'darwin':
+                self._thread_id_bits = 24
             else:
+                assert sys.platform == 'linux'
                 with open('/proc/sys/kernel/pid_max') as fh:
                     self._thread_id_bits = VanillaChronicleReader.get_thread_id_bits(int(fh.read().strip()))
 
