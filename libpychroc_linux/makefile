@@ -8,7 +8,7 @@ clean :
 
 libpychroc.so : libpychroc.o
 	g++ $(OPTS) -Wall -shared -fPIC libpychroc.o -o libpychroc.so
-	cp libpychroc.so ../pychro/pychro
+	cp libpychroc.so ../pychro/pychro/libpychroc_linux.so
 	
 libpychroc.o :
 	g++ $(OPTS) -Wall -fPIC -c libpychroc.cpp -o libpychroc.o
