@@ -20,6 +20,7 @@ import collections
 import mmap
 import struct
 import re
+import sys
 from ._pychro import *
 
 
@@ -41,7 +42,7 @@ class VanillaChronicleReader:
         self._utcnow = utcnow
         self._thread_id_bits = thread_id_bits
         if self._thread_id_bits is None:
-            if pychro.PLATFORM_WINDOWS:
+            if not sys.platform == 'linux':
                 self._thread_id_bits = 16
             else:
                 with open('/proc/sys/kernel/pid_max') as fh:

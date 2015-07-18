@@ -17,7 +17,7 @@
 import ctypes
 import os
 import pychro
-
+import sys
 
 class PychroCError(Exception):
     pass
@@ -32,7 +32,10 @@ if pychro.PLATFORM_WINDOWS:
     cdll.close_mmap.argtypes = [ctypes.c_void_p, ctypes.c_int32]
     cdll.try_atomic_write_mmap.argtypes = [ctypes.c_void_p, ctypes.c_longlong, ctypes.c_longlong, ctypes.c_longlong]
 else:
-    cdll = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(__file__), 'libpychroc.so'))
+    if sys.platform == 'linux':
+        cdll = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(__file__), 'libpychroc.so'))
+    else:
+        raise pychro.UnsupportedPlatformException('Platform %s is not supported' % sys.platform)
     cdll.open_read_mmap.argtypes = [ctypes.c_int, ctypes.c_size_t]
     cdll.open_write_mmap.argtypes = [ctypes.c_int, ctypes.c_size_t]
     cdll.read_mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
