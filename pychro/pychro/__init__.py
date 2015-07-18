@@ -16,13 +16,13 @@
 
 __all__ = ['vanilla_reader', 'vanilla_writer', '_pychro']
 
-import platform
+import sys 
 
 # Index is 24bits cycle (days since 1970), 16bits index file number, 24bits sequence of the cycle (day)
 
 FILENUM_FROM_POS_SHIFT = 26
 POS_MASK = eval('0b'+'1'*FILENUM_FROM_POS_SHIFT)
-PLATFORM_WINDOWS = (platform.uname().system == 'Windows')
+PLATFORM_WINDOWS = (sys.platform == 'windows')
 DEFAULT_MAX_MAPPED_MEMORY_PER_READER = 1024*1024*1024
 DATA_FILE_SIZE = 64*1024*1024 # 64MB
 FILENUM_FROM_INDEX_SHIFT = 24 # 16MB
@@ -34,6 +34,14 @@ INDEX_OFFSET_MASK = eval('0b'+'1'*(FILENUM_FROM_INDEX_SHIFT))
 
 class PychroException(Exception):
     pass
+
+
+class UnsupportedPlatformException(Exception):
+    pass
+
+
+if sys.version_info.major != 3:
+    raise UnsupportedPlatformException('Only python3 is supported')
 
 
 class NoData(PychroException):
