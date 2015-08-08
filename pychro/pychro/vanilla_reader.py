@@ -132,7 +132,7 @@ class VanillaChronicleReader:
         try:
             self._index_fh += [open(os.path.join(self._cycle_dir, 'index-%s' % file_num), 'rb')]
         except FileNotFoundError:
-            raise pychro.NoChronicleForDate
+            raise pychro.EndOfIndexfile
         self._index_mm += [open_read_mmap(self._index_fh[-1], pychro.INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
@@ -185,7 +185,10 @@ class VanillaChronicleReader:
         index_filenum = index_offset >> pychro.FILENUM_FROM_INDEX_SHIFT
         index_offset &= pychro.INDEX_OFFSET_MASK
         if index_filenum >= len(self._index_mm):
-            self._open_next_index()
+            try:
+                self._open_next_index()
+            except pychro.EndOfIndexfile:
+                return 0
         return read_mmap(self._index_mm[index_filenum], index_offset)
 
     def _get_data_memory_map(self, filenum, thread):

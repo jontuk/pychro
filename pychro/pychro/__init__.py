@@ -71,7 +71,7 @@ class CorruptData(PychroException):
 
 # Differs from NoData, as may happen even when following
 # as no Chronicle has been created for that date.
-class NoChronicleForDate(PychroException):
+class EndOfIndexfile(PychroException):
     pass
 
 
