@@ -221,7 +221,6 @@ class VanillaChronicleWriter(VanillaChronicleReader):
 
         while True:
             index_filenum, index_offset = divmod(self._index*8, pychro.INDEX_FILE_SIZE)
-            # keep an extra one open
             if len(self._index_mm) <= index_filenum:
                 self._open_next_index()
             prev_index_val = pychro.read_mmap(self._index_mm[index_filenum], index_offset)
