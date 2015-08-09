@@ -42,7 +42,7 @@ class VanillaChronicleReader:
         self._utcnow = utcnow
         self._thread_id_bits = thread_id_bits
         if self._thread_id_bits is None:
-            if sys.platform == 'windows':
+            if pychro.PLATFORM_WINDOWS:
                 self._thread_id_bits = 16
             elif sys.platform == 'darwin':
                 self._thread_id_bits = 24
