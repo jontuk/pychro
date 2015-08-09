@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='pychro',
-      version='0.7.0',
+      version='0.7.2',
       packages=['pychro'],
       package_data={'pychro':['libpychroc_linux.so', 'libpychroc_darwin.so', 'PychroCLib.dll']},
       author='Jon Turner',
