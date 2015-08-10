@@ -65,6 +65,13 @@ class Appender:
         mm[self._pos:self._pos+8] = struct.pack('d', val)
         self._pos += 8
 
+    def write_float(self, val):
+        mm = self._start()
+        if self._pos + 4 >= pychro.DATA_FILE_SIZE:
+            raise pychro.NoSpace
+        mm[self._pos:self._pos+4] = struct.pack('f', val)
+        self._pos += 4
+
     def write_boolean(self, val):
         mm = self._start()
         if self._pos + 1 >= pychro.DATA_FILE_SIZE:

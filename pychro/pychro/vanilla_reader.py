@@ -346,6 +346,9 @@ class RawByteReader():
         self._offset = offset
         self._bytes = bytes
 
+    def get_length(self):
+        return ~struct.unpack('i', self._bytes[self._offset-4:self._offset])[0]
+
     def get_offset(self):
         return self._offset
 
@@ -376,6 +379,11 @@ class RawByteReader():
     def read_double(self):
         ret = struct.unpack('d', self._bytes[self._offset:self._offset+8])[0]
         self._offset += 8
+        return ret
+
+    def read_float(self):
+        ret = struct.unpack('f', self._bytes[self._offset:self._offset+4])[0]
+        self._offset += 4
         return ret
 
     # todo: remove. works for test data but not correct and no corresponding write
