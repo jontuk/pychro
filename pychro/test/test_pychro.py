@@ -72,9 +72,6 @@ class TestNewAppenderFiles(unittest.TestCase):
             a.write_int(i*i*i)
             a.finish()
             chron.close()
-        # this should return 1, 1 but there appears to be a bug
-        # creating additional data files for the first appender
-        # of a VanillaChronicleWriter
         self.assertEqual((1, 1), self.count_files())
 
     def test_new_appender2(self):
@@ -463,8 +460,10 @@ class TestWriteChron(unittest.TestCase):
         for i in range(n):
             appender = self.write_chron.get_appender()
             appender.write_int(i+10)
+            self.assertEqual(4, appender.bytes_written())
             appender.finish()
             appender = self.write_chron.get_appender()
+            self.assertEqual(0, appender.bytes_written())
             appender.write_int(i*i+10)
             appender.finish()
             self.write_chron.close()
@@ -472,6 +471,7 @@ class TestWriteChron(unittest.TestCase):
         print('Writing done, reading..')
         for i in range(n):
             reader = self.read_chron.next_reader()
+            self.assertEqual(4, reader.get_length())
             self.assertEqual(i+10, reader.read_int())
             reader = self.read_chron.next_reader()
             self.assertEqual(i*i+10, reader.read_int())
@@ -877,11 +877,14 @@ class TestReadWriteTypes(unittest.TestCase):
         appender.write_long(-2**63)
         appender.write_long(2**63-1)
         appender.write_long(0)
+        appender.write_float(1.600000023841858)
+        appender.write_byte(7)
         appender.write_string('\u1234')
         appender.finish()
         self.write_chron.close()
 
         reader = self.read_chron.next_reader()
+        self.assertEqual(343, reader.get_length())
         for i in range(256):
             self.assertEqual(i, reader.read_byte())
         for i in (0, 1, 10, 100, 1000, 10000):
@@ -898,6 +901,8 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(-2**63, reader.read_long())
         self.assertEqual(2**63-1, reader.read_long())
         self.assertEqual(0, reader.read_long())
+        self.assertEqual(1.600000023841858, reader.read_float())
+        self.assertEqual(7, reader.read_byte())
         self.assertEqual('\u1234', reader.read_string())
 
     def tearDown(self):
