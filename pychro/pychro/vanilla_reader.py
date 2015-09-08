@@ -20,7 +20,7 @@ import collections
 import mmap
 import struct
 import re
-import sys
+import socket
 from ._pychro import *
 
 
@@ -341,7 +341,87 @@ class VanillaChronicleReader:
         return RawByteReader(*self.next_raw_bytes())
 
 
-class RawByteReader():
+class RemoteChronicleReader:
+    HEADER_LENGTH = 12
+    IN_SYNC = -128
+    PAD = -127
+    SYNCED_OK = -126
+
+    FROM_START = -1
+    FROM_END = -2
+
+    SUBSCRIBE = 1
+
+    # where in 'start', 'end'/'now', index or date (YYYY-MM-DD)
+    def __init__(self, host, port, where):
+        self._host = host
+        self._port = port
+        self._idx = None
+        self._soc = None
+
+        if where == 'start':
+            self._startidx = RemoteChronicleReader.FROM_START
+        elif where == 'now' or where == 'end':
+            self._startidx = RemoteChronicleReader.FROM_END
+        else:
+            try:
+                self._startidx = int(where)
+            except ValueError:
+                try:
+                    if where == 'today':
+                        date = datetime.datetime.utcnow().date()
+                    else:
+                        date = datetime.date(*map(int, where.split('-')))
+                    dt = datetime.datetime(date.year, date.month, date.day, tzinfo=datetime.timezone.utc)
+                    self._startidx = (int(dt.timestamp()) << pychro.CYCLE_INDEX_POS)*86400
+                except Exception as e:
+                    raise pychro.InvalidArgumentError('Unable to determine start position for remote tailer from %s'
+                                                      % where)
+
+        self._soc = socket.create_connection((self._host, self._port))
+        self._soc.send(struct.pack('qq', RemoteChronicleReader.SUBSCRIBE, self._startidx)) # subscribe to -1 start -2 end
+        while True:
+            msg = self._soc.recv(RemoteChronicleReader.HEADER_LENGTH)
+            length, index = struct.unpack('=iq', msg)
+            if length in (RemoteChronicleReader.IN_SYNC, RemoteChronicleReader.PAD): # in-sync, pad
+                continue
+            elif length == RemoteChronicleReader.SYNCED_OK: # synced OK
+                self._idx = index
+                if where == 'now': # consume last message which we get with end..
+                    self.next_reader()
+                return
+            else:
+                raise Exception('In-Sync not received as expected (length:%s, index:%s)' % (length, index))
+
+    def __str__(self):
+        return '<RemoteChronicleReader host:%s port:%s idx:%s>' % (self._cycle_dir, self._index)
+
+    def get_index(self):
+        return self._idx
+
+    def close(self):
+        if self._soc:
+            self._soc.close()
+            self._soc = None
+
+    def __del__(self):
+        self.close()
+
+    def next_reader(self):
+        while True:
+            msg = self._soc.recv(RemoteChronicleReader.HEADER_LENGTH)
+            length, index = struct.unpack('=iq', msg)
+            if length in (RemoteChronicleReader.IN_SYNC, RemoteChronicleReader.PAD): # in-sync, pad
+                continue
+            self._idx = index
+            chunks = [struct.pack('i', ~length)]
+            while length > 0:
+                chunks += [self._soc.recv(length)]
+                length -= len(chunks[-1])
+            return RawByteReader(4, b''.join(chunks))
+
+
+class RawByteReader:
     def __init__(self, offset, bytes):
         self._offset = offset
         self._bytes = bytes
