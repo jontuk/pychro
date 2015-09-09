@@ -409,16 +409,23 @@ class RemoteChronicleReader:
 
     def next_reader(self):
         while True:
-            msg = self._soc.recv(RemoteChronicleReader.HEADER_LENGTH)
-            length, index = struct.unpack('=iq', msg)
-            if length in (RemoteChronicleReader.IN_SYNC, RemoteChronicleReader.PAD): # in-sync, pad
+
+            hdr_chunks = []
+            hdr_length = RemoteChronicleReader.HEADER_LENGTH
+            while hdr_length > 0:
+                hdr_chunks += [self._soc.recv(hdr_length)]
+                hdr_length -= len(hdr_chunks[-1])
+
+            body_length, index = struct.unpack('=iq', b''.join(hdr_chunks))
+            if body_length in (RemoteChronicleReader.IN_SYNC, RemoteChronicleReader.PAD): # in-sync, pad
                 continue
+
             self._idx = index
-            chunks = [struct.pack('i', ~length)]
-            while length > 0:
-                chunks += [self._soc.recv(length)]
-                length -= len(chunks[-1])
-            return RawByteReader(4, b''.join(chunks))
+            body_chunks = [struct.pack('i', ~body_length)]
+            while body_length > 0:
+                body_chunks += [self._soc.recv(body_length)]
+                body_length -= len(body_chunks[-1])
+            return RawByteReader(4, b''.join(body_chunks))
 
 
 class RawByteReader:
