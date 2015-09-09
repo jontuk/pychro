@@ -394,7 +394,7 @@ class RemoteChronicleReader:
                 raise Exception('In-Sync not received as expected (length:%s, index:%s)' % (length, index))
 
     def __str__(self):
-        return '<RemoteChronicleReader host:%s port:%s idx:%s>' % (self._cycle_dir, self._index)
+        return '<RemoteChronicleReader host:%s port:%s idx:%s>' % (self._host, self._port, self._idx)
 
     def get_index(self):
         return self._idx
