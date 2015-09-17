@@ -247,22 +247,16 @@ class VanillaChronicleWriter(VanillaChronicleReader):
     def _open_next_index(self):
         file_num = len(self._index_fh)
         fn = os.path.join(self._cycle_dir, 'index-%s' % file_num)
-        if os.path.isfile(fn):
-            fh = open(fn, 'r+b')
-        else:
-            fh = open(fn, 'w+b')
-            fh.truncate(pychro.INDEX_FILE_SIZE)
-            fh.flush()
+        fh = open(fn, 'a+b')
+        fh.truncate(pychro.INDEX_FILE_SIZE)
+        fh.flush()
         self._index_fh += [fh]
         self._index_mm += [pychro.open_write_mmap(fh, pychro.INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
         fn = os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum))
-        if os.path.isfile(fn):
-            fh = open(fn, 'r+b')
-        else:
-            fh = open(fn, 'w+b')
-            fh.truncate(pychro.DATA_FILE_SIZE)
+        fh = open(fn, 'a+b')
+        fh.truncate(pychro.DATA_FILE_SIZE)
         return fh
 
     def _open_data_memory_map(self, filenum, thread):
