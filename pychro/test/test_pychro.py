@@ -29,6 +29,7 @@ import multiprocessing
 import random
 import shutil
 import tempfile
+import glob
 
 
 sys.path = [os.path.split(os.path.dirname(__file__))[0]] + sys.path
@@ -1061,8 +1062,58 @@ class TestGetIndexChronicle(unittest.TestCase):
         reader = pychro.VanillaChronicleReader(self.tempdir.path)
         self.assertEqual(idx, reader.get_index())
 
+
+class Tid0Thread(threading.Thread):
+    def __init__(self, path, id):
+        super().__init__()
+        self._path = path
+        self._id = id
+
+    def run(self):
+        write_chron = pychro.VanillaChronicleWriter(self._path)
+        for j in range(TestWriteTid0Types.NUM_MSGS):
+            appender = write_chron.get_locking_appender()
+            for i in range(TestWriteTid0Types.NUM_BYTES):
+                appender.write_byte(i)
+                appender.write_string(self._id)
+                #time.sleep(0.01)
+            appender.finish()
+        write_chron.close()
+
+class TestWriteTid0Types(unittest.TestCase):
+    NUM_THREADS = 4
+    NUM_MSGS = 5
+    NUM_BYTES = 6
+
+    def setUp(self):
+        self.tempdir = TempDir()
+        self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
+
+    def test1(self):
+        threads = [Tid0Thread(self.tempdir.path, str(i)) for i in range(TestWriteTid0Types.NUM_THREADS)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+
+        j = 0
+        while True:
+            try:
+                reader = self.read_chron.next_reader()
+            except pychro.NoData:
+                break
+            self.assertEqual(TestWriteTid0Types.NUM_BYTES*3, reader.get_length())
+            for i in range(TestWriteTid0Types.NUM_BYTES):
+                self.assertEqual(i, reader.read_byte())
+                #rint(i, reader.read_string())
+                self.assertEqual(str(j), reader.read_string())
+
+            j += 1
+        self.assertEquals(j, TestWriteTid0Types.NUM_MSGS*TestWriteTid0Types.NUM_THREADS)
+
+        files = glob.glob(self.tempdir.path+'/*/*')
+        self.assertEquals(['data-0-0', 'index-0'], sorted([os.path.basename(f) for f in files]))
+
     def tearDown(self):
-        pass
+        self.read_chron.close()
 
 if __name__ == '__main__':
     unittest.main()

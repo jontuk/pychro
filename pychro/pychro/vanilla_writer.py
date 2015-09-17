@@ -20,6 +20,7 @@ from ._pychro import *
 import struct
 import os
 import mmap
+import lockfile
 
 
 class Appender:
@@ -175,6 +176,13 @@ class Appender:
         self._start_date = None
 
 
+class LockingAppender(Appender):
+    def __init__(self, chronicle, tid, filenum, pos, utcnow, max_msg_size=64*1024):
+        super().__init__(chronicle, tid, filenum, pos, utcnow, max_msg_size)
+
+    def finish(self):
+        super().finish()
+
 
 class VanillaChronicleWriter(VanillaChronicleReader):
     def __init__(self, base_dir, polling_interval=None,
@@ -247,22 +255,18 @@ class VanillaChronicleWriter(VanillaChronicleReader):
     def _open_next_index(self):
         file_num = len(self._index_fh)
         fn = os.path.join(self._cycle_dir, 'index-%s' % file_num)
-        if os.path.isfile(fn):
-            fh = open(fn, 'r+b')
-        else:
-            fh = open(fn, 'w+b')
-            fh.truncate(pychro.INDEX_FILE_SIZE)
-            fh.flush()
+        fh = open(fn, 'a+b')
+        fh.truncate(pychro.INDEX_FILE_SIZE)
+        fh.seek(0, 0)
+        fh.flush()
         self._index_fh += [fh]
         self._index_mm += [pychro.open_write_mmap(fh, pychro.INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
         fn = os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum))
-        if os.path.isfile(fn):
-            fh = open(fn, 'r+b')
-        else:
-            fh = open(fn, 'w+b')
-            fh.truncate(pychro.DATA_FILE_SIZE)
+        fh = open(fn, 'a+b')
+        fh.truncate(pychro.DATA_FILE_SIZE)
+        fh.seek(0, 0)
         return fh
 
     def _open_data_memory_map(self, filenum, thread):
@@ -285,8 +289,13 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         return '<VanillaChronicleWriter dir:%s idx:%s tid:%s>' % (self._cycle_dir, self._index, self._get_tid())
 
     def get_appender(self):
-        tid = self._get_tid()
+        return self._get_appender(Appender, self._get_tid())
 
+    # Uses special threadid 0 and locks data file
+    def get_locking_appender(self):
+        return self._get_appender(LockingAppender, 0)
+
+    def _get_appender(self, appender_type, tid):
         filenum_pos = self._positions.get(tid)
         if filenum_pos:
             filenum, pos = filenum_pos
@@ -305,7 +314,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
                     pos = _pos + ~struct.unpack('i', mm[_pos-4:_pos])[0] + 4
                     filenum = _filenum
                     break
-        return Appender(self, tid, filenum, pos, self._utcnow)
+        return appender_type(self, tid, filenum, pos, self._utcnow)
 
 
 
