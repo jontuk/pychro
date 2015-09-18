@@ -429,6 +429,8 @@ class RemoteChronicleReader:
 
 
 class RawByteReader:
+    __slots__ = ['_offset', '_bytes']
+
     def __init__(self, offset, bytes):
         self._offset = offset
         self._bytes = bytes
