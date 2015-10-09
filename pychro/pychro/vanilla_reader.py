@@ -250,15 +250,13 @@ class VanillaChronicleReader:
             try:
                 self._data_mms.popitem()[1].close()
             except ReferenceError:
-                pass
+                break
             except KeyError:
                 break
 
         while True:
             try:
                 self._data_fhs.popitem()[1].close()
-            except ReferenceError:
-                pass
             except KeyError:
                 break
 
@@ -549,6 +547,7 @@ class RawByteReader:
     def peek_string_undef_offset(self):
         l = self.read_stopbit()
         return self._bytes[self._offset: self._offset + l].decode()
+
 
 
 
