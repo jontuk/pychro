@@ -214,7 +214,6 @@ class TestThreadIdBits(unittest.TestCase):
         self.read_chron.close()
 
 
-
 class TestWriteOverMidnight(unittest.TestCase):
     @staticmethod
     def mock_utcnow():
@@ -904,6 +903,14 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(1.600000023841858, reader.read_float())
         self.assertEqual(7, reader.read_byte())
         self.assertEqual('\u1234', reader.read_string())
+
+    def testNegStopBit(self):
+        appender = self.write_chron.get_appender()
+        try:
+            appender.write_stopbit(-1)
+        except ValueError:
+            return
+        assert False
 
     def tearDown(self):
         self.read_chron.close()

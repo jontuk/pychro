@@ -65,12 +65,12 @@ public class Application
     public static void main(String [] args) throws IOException, InterruptedException {
 
         Application app = new Application();
-        /*app.createTestChronicle(args[0] + "/PychroTestChron1.Small", 1, 10);
+        app.createTestChronicle(args[0] + "/PychroTestChron1.Small", 1, 10);
         app.createTestChronicle(args[0] + "/PychroTestChron2.Small", 2, 10);
         app.createTestChronicle(args[0] + "/PychroTestChron3.Small", 3, 10);
         app.createTestChronicle(args[0] + "/PychroTestChron1.Large", 1, 100_000);
         app.createTestChronicle(args[0] + "/PychroTestChron2.Large", 2, 100_000);
-        app.createTestChronicle(args[0] + "/PychroTestChron3.Large", 3, 100_000);*/
+        app.createTestChronicle(args[0] + "/PychroTestChron3.Large", 3, 100_000);
         app.createTestChronicle(args[0] + "/PychroTestChron4.XLarge", 5, 3_000_000);
         LOG.info("Done.");
     }

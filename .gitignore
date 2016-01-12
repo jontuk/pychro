@@ -2,6 +2,8 @@
 *test-files*/
 __pycache__
 .idea
+*.iml
+*/target/*
 
 *.o
 libpychroc.so
@@ -9,3 +11,5 @@ libpychroc.so
 pychro/MANIFEST
 pychro/build
 pychro/dist
+
+PychroTestChron*

@@ -126,8 +126,10 @@ class Appender:
         self._pos += l
 
     def write_stopbit(self, val):
+        if val < 0:
+            raise ValueError('Stop-bit encoding does not support negative values')
         mm = self._start()
-        while val < 0 or val > 127:
+        while val > 127:
             mm[self._pos] = 0x80 | (val & 0x7f)
             self._pos += 1
             val = val >> 7
