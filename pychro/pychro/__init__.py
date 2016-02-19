@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-__all__ = ['vanilla_reader', 'vanilla_writer', '_pychro']
+import sys
 
-import sys 
+__all__ = ['vanilla_reader', 'vanilla_writer', '_pychro']
 
 # Index is 24bits cycle (days since 1970), 16bits index file number, 24bits sequence of the cycle (day)
 

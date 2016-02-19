@@ -132,7 +132,7 @@ class Appender:
         while val > 127:
             mm[self._pos] = 0x80 | (val & 0x7f)
             self._pos += 1
-            val = val >> 7
+            val >>= 7
         mm[self._pos] = val
         self._pos += 1
 
@@ -177,7 +177,6 @@ class Appender:
         self._start_date = None
 
 
-
 class VanillaChronicleWriter(VanillaChronicleReader):
     def __init__(self, base_dir, polling_interval=None,
                  max_mapped_memory=pychro.DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
@@ -203,7 +202,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
     def _set_appender_pos(self, tid, filenum, pos):
         self._positions[tid] = (filenum, pos)
 
-    #Returns whether rollover succeeded or not
+    # Returns whether rollover succeeded or not
     def _day_rollover(self, new_date):
         todays_dir = os.path.join(self._base_dir, '%4d%02d%02d'
                                   % (new_date.year, new_date.month, new_date.day))
@@ -243,8 +242,8 @@ class VanillaChronicleWriter(VanillaChronicleReader):
 
     def _get_tid(self):
         return get_thread_id() & self._thread_id_mask
-        #thread_id_bits not large enough? have to live with this..
-        #assert get_thread_id() == tid
+        # thread_id_bits not large enough? have to live with this..
+        # assert get_thread_id() == tid
 
     def _open_next_index(self):
         file_num = len(self._index_fh)

@@ -19,6 +19,7 @@ import os
 import pychro
 import sys
 
+
 class PychroCError(Exception):
     pass
 
@@ -64,6 +65,7 @@ def open_read_mmap(fh, size):
     if res == 0xffffffffffffffff:
         raise PychroCError
     return res
+
 
 def open_write_mmap(fh, size):
     fh.flush()

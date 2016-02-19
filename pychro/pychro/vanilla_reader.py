@@ -99,14 +99,14 @@ class VanillaChronicleReader:
         i = 0
         pid_max -= 1
         while pid_max:
-            pid_max = pid_max >> 1
+            pid_max >>= 1
             i += 1
         return i
 
     @staticmethod
     def to_full_index(date, index):
         return index + ((int(datetime.datetime(date.year, date.month, date.day,
-                                      tzinfo=datetime.timezone.utc).timestamp())//86400) << pychro.CYCLE_INDEX_POS)
+                        tzinfo=datetime.timezone.utc).timestamp())//86400) << pychro.CYCLE_INDEX_POS)
 
     @staticmethod
     def from_full_index(full_index):
@@ -377,7 +377,8 @@ class RemoteChronicleReader:
                                                       % where)
 
         self._soc = socket.create_connection((self._host, self._port))
-        self._soc.send(struct.pack('qq', RemoteChronicleReader.SUBSCRIBE, self._startidx)) # subscribe to -1 start -2 end
+        # subscribe to -1 start -2 end
+        self._soc.send(struct.pack('qq', RemoteChronicleReader.SUBSCRIBE, self._startidx))
         while True:
             msg = self._soc.recv(RemoteChronicleReader.HEADER_LENGTH)
             length, index = struct.unpack('=iq', msg)
@@ -429,9 +430,9 @@ class RemoteChronicleReader:
 class RawByteReader:
     __slots__ = ['_offset', '_bytes']
 
-    def __init__(self, offset, bytes):
+    def __init__(self, offset, _bytes):
         self._offset = offset
-        self._bytes = bytes
+        self._bytes = _bytes
 
     def get_length(self):
         return ~struct.unpack('i', self._bytes[self._offset-4:self._offset])[0]
