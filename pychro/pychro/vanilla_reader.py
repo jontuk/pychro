@@ -14,14 +14,17 @@
 # limitations under the License.
 #
 
+from .common import *
+from . import _pychro
+
 import time
 import datetime
 import collections
 import mmap
 import struct
 import re
+import os
 import socket
-from ._pychro import *
 
 
 class VanillaChronicleReader:
@@ -36,29 +39,23 @@ class VanillaChronicleReader:
     #
 
     def __init__(self, base_dir, polling_interval=None, date=None, full_index=None,
-                 max_mapped_memory=pychro.DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
+                 max_mapped_memory=DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
                  thread_id_bits=None, utcnow=datetime.datetime.utcnow):
-        self._index_file_size = pychro.INDEX_FILE_SIZE
+        self._index_file_size = INDEX_FILE_SIZE
         self._utcnow = utcnow
         self._thread_id_bits = thread_id_bits
         if self._thread_id_bits is None:
-            if pychro.PLATFORM_WINDOWS:
-                self._thread_id_bits = 16
-            elif sys.platform == 'darwin':
-                self._thread_id_bits = 24
-            else:
-                assert sys.platform == 'linux'
-                with open('/proc/sys/kernel/pid_max') as fh:
-                    self._thread_id_bits = VanillaChronicleReader.get_thread_id_bits(int(fh.read().strip()))
+            with open('/proc/sys/kernel/pid_max') as fh:
+                self._thread_id_bits = VanillaChronicleReader.get_thread_id_bits(int(fh.read().strip()))
 
         self._base_dir = base_dir
         self._index_data_offset_bits = 64 - self._thread_id_bits
         self._thread_id_idx_mask = eval('0b'+'1'*self._thread_id_bits+'0'*self._index_data_offset_bits)
         self._thread_id_mask = eval('0b'+'1'*self._thread_id_bits)
         self._index_data_offset_mask = eval('0b'+'0'*self._thread_id_bits+'1'*self._index_data_offset_bits)
-        self._max_maps = (max_mapped_memory//(pychro.DATA_FILE_SIZE)) if max_mapped_memory else None
+        self._max_maps = (max_mapped_memory//DATA_FILE_SIZE) if max_mapped_memory else None
         if self._max_maps is not None and self._max_maps < 1:
-            raise pychro.ConfigError('max_mapped_memory must be >= 64MB')
+            raise ConfigError('max_mapped_memory must be >= 64MB')
         self._polling_interval = polling_interval
         self._base_dir = base_dir
 
@@ -75,13 +72,13 @@ class VanillaChronicleReader:
 
         if full_index:
             if date:
-                raise pychro.InvalidArgumentError('Providing index and date are mutually exclusive')
+                raise InvalidArgumentError('Providing index and date are mutually exclusive')
             date, index = VanillaChronicleReader.from_full_index(full_index)
 
         if date is None:
             try:
                 self._try_set_cycle_dir()
-            except pychro.NoData:
+            except NoData:
                 return
         else:
             self._update_cycle_dir(os.path.join(base_dir, '%4d%02d%02d' % (date.year, date.month, date.day)))
@@ -106,12 +103,12 @@ class VanillaChronicleReader:
     @staticmethod
     def to_full_index(date, index):
         return index + ((int(datetime.datetime(date.year, date.month, date.day,
-                        tzinfo=datetime.timezone.utc).timestamp())//86400) << pychro.CYCLE_INDEX_POS)
+                        tzinfo=datetime.timezone.utc).timestamp())//86400) << CYCLE_INDEX_POS)
 
     @staticmethod
     def from_full_index(full_index):
-        index = full_index & pychro.INDEX_OFFSET_MASK
-        date = datetime.datetime.fromtimestamp((full_index >> pychro.CYCLE_INDEX_POS)*86400,
+        index = full_index & INDEX_OFFSET_MASK
+        date = datetime.datetime.fromtimestamp((full_index >> CYCLE_INDEX_POS)*86400,
                                                tz=datetime.timezone.utc).date()
         return date, index
 
@@ -132,25 +129,23 @@ class VanillaChronicleReader:
         try:
             self._index_fh += [open(os.path.join(self._cycle_dir, 'index-%s' % file_num), 'rb')]
         except FileNotFoundError:
-            raise pychro.EndOfIndexfile
-        self._index_mm += [open_read_mmap(self._index_fh[-1], pychro.INDEX_FILE_SIZE)]
+            raise EndOfIndexfile
+        self._index_mm += [_pychro.open_read_mmap(self._index_fh[-1], INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
         if self._cycle_dir is None:
             if not self._try_next_date():
-                raise pychro.NoData
+                raise NoData
         try:
             return open(os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum)), 'rb')
         except FileNotFoundError:
-            raise pychro.CorruptData
+            raise CorruptData
 
     def _open_data_memory_map(self, filenum, thread):
         fh = self._data_fhs.get((filenum, thread))
         if not fh:
             fh = self._open_data_file(filenum, thread)
             self._data_fhs[(filenum, thread)] = fh
-        if pychro.PLATFORM_WINDOWS:
-            return mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
         return mmap.mmap(fh.fileno(), 0, prot=mmap.PROT_READ)
 
     def _try_set_cycle_dir(self, date=None):
@@ -165,7 +160,7 @@ class VanillaChronicleReader:
                 continue
             self._update_cycle_dir(fp)
             return
-        raise pychro.NoData
+        raise NoData
 
     def _try_next_date(self):
         _next = False
@@ -182,14 +177,14 @@ class VanillaChronicleReader:
 
     def _get_index_value(self, index_offset):
         index_offset *= 8
-        index_filenum = index_offset >> pychro.FILENUM_FROM_INDEX_SHIFT
-        index_offset &= pychro.INDEX_OFFSET_MASK
+        index_filenum = index_offset >> FILENUM_FROM_INDEX_SHIFT
+        index_offset &= INDEX_OFFSET_MASK
         if index_filenum >= len(self._index_mm):
             try:
                 self._open_next_index()
-            except pychro.EndOfIndexfile:
+            except EndOfIndexfile:
                 return 0
-        return read_mmap(self._index_mm[index_filenum], index_offset)
+        return _pychro.read_mmap(self._index_mm[index_filenum], index_offset)
 
     def _get_data_memory_map(self, filenum, thread):
         if (filenum, thread) in self._data_mms:
@@ -216,11 +211,11 @@ class VanillaChronicleReader:
             pos = val & self._index_data_offset_mask
 
             if pos:
-                filenum = (pos >> pychro.FILENUM_FROM_POS_SHIFT)
-                pos = pos & pychro.POS_MASK
+                filenum = (pos >> FILENUM_FROM_POS_SHIFT)
+                pos = pos & POS_MASK
                 thread = (val & self._thread_id_idx_mask) >> self._index_data_offset_bits
                 return filenum, pos, thread
-        raise pychro.NoData
+        raise NoData
 
     def _next_position(self):
         while True:
@@ -231,14 +226,14 @@ class VanillaChronicleReader:
                 if self._date != self._utcnow().date() and self._try_next_date():
                     continue
                 if self._polling_interval is None:
-                    raise pychro.NoData
+                    raise NoData
                 if self._polling_interval != 0:
                     time.sleep(self._polling_interval)
                 continue
             break
 
-        filenum = (pos >> pychro.FILENUM_FROM_POS_SHIFT)
-        pos = pos & pychro.POS_MASK
+        filenum = (pos >> FILENUM_FROM_POS_SHIFT)
+        pos = pos & POS_MASK
 
         self._index += 1
         thread = (val & self._thread_id_idx_mask) >> self._index_data_offset_bits
@@ -260,7 +255,7 @@ class VanillaChronicleReader:
             except KeyError:
                 break
 
-        [close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm]
+        [_pychro.close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm]
         self._index_mm = []
 
         [fh.close() for fh in self._index_fh if fh]
@@ -274,7 +269,7 @@ class VanillaChronicleReader:
 
     def get_index(self):
         if self._full_index_base is None:
-            raise pychro.NoData
+            raise NoData
         return self._index + self._full_index_base
 
     def next_index(self):
@@ -319,9 +314,9 @@ class VanillaChronicleReader:
             return low_idx + self._full_index_base
 
         # find the maximum possible
-        high_idx = pychro.ENTRIES_PER_INDEX_FILE-1
+        high_idx = ENTRIES_PER_INDEX_FILE-1
         while self._get_index_value(high_idx):
-            high_idx += pychro.ENTRIES_PER_INDEX_FILE
+            high_idx += ENTRIES_PER_INDEX_FILE
 
         while True:
             current_idx = (low_idx + high_idx) // 2
@@ -371,9 +366,9 @@ class RemoteChronicleReader:
                     else:
                         date = datetime.date(*map(int, where.split('-')))
                     dt = datetime.datetime(date.year, date.month, date.day, tzinfo=datetime.timezone.utc)
-                    self._startidx = (int(dt.timestamp()) << pychro.CYCLE_INDEX_POS)*86400
+                    self._startidx = (int(dt.timestamp()) << CYCLE_INDEX_POS)*86400
                 except Exception as e:
-                    raise pychro.InvalidArgumentError('Unable to determine start position for remote tailer from %s'
+                    raise InvalidArgumentError('Unable to determine start position for remote tailer from %s'
                                                       % where)
 
         self._soc = socket.create_connection((self._host, self._port))

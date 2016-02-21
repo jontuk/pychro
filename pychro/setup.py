@@ -1,15 +1,18 @@
-from distutils.core import setup
+from distutils.core import setup, Extension
 
 setup(name='pychro',
-      version='0.7.8',
+      version='0.8.0',
       packages=['pychro'],
-      package_data={'pychro':['libpychroc_linux.so', 'libpychroc_darwin.so', 'PychroCLib.dll']},
       author='Jon Turner',
       description='Memory-mapped message journal',
       url='https://github.com/jontuk/pychro',
       license='Apache 2.0',
-      classifiers=[ 'Development Status :: 4 - Beta',
-                    'Intended Audience :: Developers',
-                    'License :: OSI Approved :: Apache Software License',
-                    'Programming Language :: Python :: 3.4' ]
+      ext_modules=[Extension('pychro.pychroc', sources=['_pychroc/pychroc.c'])],
+      classifiers=['Development Status :: 4 - Beta',
+                   'Intended Audience :: Developers',
+                   'License :: OSI Approved :: Apache Software License',
+                   'Operating System :: POSIX :: Linux',
+                   'Programming Language :: Python :: Implementation :: CPython',
+                   'Programming Language :: Python :: 3.4',
+                   'Programming Language :: Python :: 3.5']
 )

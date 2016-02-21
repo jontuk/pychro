@@ -29,10 +29,13 @@ import multiprocessing
 import random
 import shutil
 import tempfile
+import subprocess
 
+subprocess.check_call([sys.executable, 'setup.py', 'build'], cwd=os.path.split(os.path.dirname(__file__))[0])
 
-sys.path = [os.path.split(os.path.dirname(__file__))[0]] + sys.path
+sys.path = [os.path.join(os.path.split(os.path.dirname(__file__))[0], 'build', 'lib.linux-x86_64-3.4')] + sys.path
 import pychro
+import pychro._pychro
 
 PYCHRO_QUICK_TESTS = os.environ.get('PYCHRO_QUICK_TESTS', '0') == '1'
 
@@ -44,8 +47,7 @@ class TempDir:
         self.path = tempfile.mkdtemp()
 
     def __del__(self):
-        if not pychro.PLATFORM_WINDOWS:
-            shutil.rmtree(self.path)
+        shutil.rmtree(self.path)
             
             
 class TempFile:
@@ -53,8 +55,7 @@ class TempFile:
         self.path = tempfile.mktemp()
 
     def __del__(self):
-        if not pychro.PLATFORM_WINDOWS:
-            os.remove(self.path)
+        os.remove(self.path)
 
 
 class TestNewAppenderFiles(unittest.TestCase):
@@ -164,6 +165,7 @@ class TestThreadIdBits(unittest.TestCase):
 
     def test_pid_max_65536(self):
         self.with_pid_max(65536, 16)
+
 
     def test_pid_max_131072(self):
         self.with_pid_max(131072, 17)
@@ -442,12 +444,6 @@ class TestMultiWriteChron(unittest.TestCase):
         self._read_chron2.close()
 
 
-class TestGetThreadId(unittest.TestCase):
-    def test_get_thread_id(self):
-        tid = pychro._pychro.get_thread_id()
-        self.assertIsInstance(tid, int)
-
-
 class TestWriteChron(unittest.TestCase):
     def setUp(self):
         self.tempdir = TempDir()
@@ -654,6 +650,7 @@ class TestChronPerf(unittest.TestCase):
         self.write_chron.close()
         self.read_chron.close()
 
+
 class CMapThread(threading.Thread):
     def __init__(self, _id, data):
         super().__init__()
@@ -664,7 +661,7 @@ class CMapThread(threading.Thread):
     def run(self):
         offset = 0
         while offset < TEST_SIZE*8:
-            if pychro.try_atomic_write_mmap(self.data, offset, 0, self.id) == 0:
+            if pychro._pychro.try_atomic_write_mmap(self.data, 0, self.id, offset) == 0:
                 self.writes += 1
             offset += 8
 
@@ -682,30 +679,33 @@ class TestCMapWrite(unittest.TestCase):
 
     def open(self):
         self.fh = open(self.tempfile.path, 'r+b')
-        self.data = pychro.open_write_mmap(self.fh, TEST_SIZE*8)
+        self.data = pychro._pychro.open_write_mmap(self.fh, TEST_SIZE*8)
 
     def close(self):
-        pychro.close_mmap(self.data, TEST_SIZE*8)
+        pychro._pychro.close_mmap(self.data, TEST_SIZE*8)
         self.data = None
         self.fh.close()
         self.fh = None
 
+    def test_open_close(self):
+        pass
+
     def test_read_words(self):
         for i in range(TEST_SIZE):
-            self.assertEqual(pychro.read_mmap(self.data, i*8), 0)
+            self.assertEqual(pychro._pychro.read_mmap(self.data, i*8), 0)
 
     def test_write_words(self):
         for i in range(TEST_SIZE):
-            pychro.try_atomic_write_mmap(self.data, i*8, pychro.read_mmap(self.data, i*8), i)
+            pychro._pychro.try_atomic_write_mmap(self.data, pychro._pychro.read_mmap(self.data, i*8), i, i*8)
         self.close()
         self.open()
         for i in range(TEST_SIZE):
-            self.assertEqual(pychro.read_mmap(self.data, i*8), i)
+            self.assertEqual(pychro._pychro.read_mmap(self.data, i*8), i)
 
     def test_threads(self):
         for i in range(2):
             for j in range(TEST_SIZE):
-                pychro.try_atomic_write_mmap(self.data, j*8, pychro.read_mmap(self.data, j*8), 0)
+                pychro._pychro.try_atomic_write_mmap(self.data, pychro._pychro.read_mmap(self.data, j*8), 0, j*8)
             ts = []
             num_threads = 2
             for i in range(1, num_threads+1):
@@ -718,7 +718,7 @@ class TestCMapWrite(unittest.TestCase):
                 t.join()
                 tcount[t.id] = t.writes
             for w in range(TEST_SIZE):
-                v = pychro.read_mmap(self.data, w*8)
+                v = pychro._pychro.read_mmap(self.data, w*8)
                 acount[v] = acount.get(v, 0)+1
 
             self.assertEqual(len(tcount), len(acount))
@@ -761,10 +761,7 @@ class TestMMapWrite(unittest.TestCase):
 
     def open(self):
         self.fh = open(self.tempfile.path, 'r+b')
-        if pychro.PLATFORM_WINDOWS:
-            self.mm = mmap.mmap(self.fh.fileno(), 0)
-        else:
-            self.mm = mmap.mmap(self.fh.fileno(), 0, prot=mmap.PROT_READ | mmap.PROT_WRITE)
+        self.mm = mmap.mmap(self.fh.fileno(), 0, prot=mmap.PROT_READ | mmap.PROT_WRITE)
 
     def close(self):
         self.mm.close()
@@ -825,31 +822,31 @@ class TestMMap(unittest.TestCase):
             for i in range(self.size//8):
                 fh.write(struct.pack('Q', i))
         self.fh = open(self.tempfile.path, 'r+b')
-        self.read_data = pychro.open_read_mmap(self.fh, self.size)
-        self.write_data = pychro.open_write_mmap(self.fh, self.size)
+        self.read_data = pychro._pychro.open_read_mmap(self.fh, self.size)
+        self.write_data = pychro._pychro.open_write_mmap(self.fh, self.size)
 
     def tearDown(self):
-        pychro.close_mmap(self.write_data, self.size)
-        pychro.close_mmap(self.read_data, self.size)
+        pychro._pychro.close_mmap(self.write_data, self.size)
+        pychro._pychro.close_mmap(self.read_data, self.size)
         self.fh.close()
 
     def test_read(self):
         for i, offset in enumerate(range(0, self.size, 8)):
-            self.assertEqual(i, pychro.read_mmap(self.read_data, offset))
+            self.assertEqual(i, pychro._pychro.read_mmap(self.read_data, offset))
 
     def test_write(self):
         for i, offset in enumerate(range(0, self.size, 8)):
-            self.assertEqual(i, pychro.read_mmap(self.write_data, offset))
+            self.assertEqual(i, pychro._pychro.read_mmap(self.write_data, offset))
         for i, offset in enumerate(range(0, self.size, 8)):
-            self.assertEqual(i, pychro.read_mmap(self.read_data, offset))
+            self.assertEqual(i, pychro._pychro.read_mmap(self.read_data, offset))
 
         for i, offset in enumerate(range(0, self.size, 8)):
-            pychro.unsafe_write_mmap(self.write_data, offset, i*i)
+            pychro._pychro.unsafe_write_mmap(self.write_data, i*i, offset)
 
         for i, offset in enumerate(range(0, self.size, 8)):
-            self.assertEqual(i*i, pychro.read_mmap(self.write_data, offset))
+            self.assertEqual(i*i, pychro._pychro.read_mmap(self.write_data, offset))
         for i, offset in enumerate(range(0, self.size, 8)):
-            self.assertEqual(i*i, pychro.read_mmap(self.read_data, offset))
+            self.assertEqual(i*i, pychro._pychro.read_mmap(self.read_data, offset))
 
 
 class TestReadWriteTypes(unittest.TestCase):
@@ -857,6 +854,18 @@ class TestReadWriteTypes(unittest.TestCase):
         self.tempdir = TempDir()
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
+
+    def test2(self):
+        appender = self.write_chron.get_appender()
+        appender.write_int(123)
+        appender.finish()
+
+        # close should be optional?
+        self.write_chron.close()
+
+        reader = self.read_chron.next_reader()
+        self.assertEqual(4, reader.get_length())
+        self.assertEqual(123, reader.read_int())
 
     def test1(self):
         appender = self.write_chron.get_appender()

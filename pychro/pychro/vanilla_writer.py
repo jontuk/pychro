@@ -15,8 +15,9 @@
 #
 
 
-from .vanilla_reader import *
-from ._pychro import *
+from .common import *
+from . import _pychro
+
 import struct
 import os
 import mmap
@@ -36,15 +37,15 @@ class Appender:
 
     def fill(self, size, ch):
         mm = self._start()
-        if self._pos + size >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + size >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+size] = ch*size
         self._pos += size
 
     def advance(self, size):
         self._start()
-        if self._pos + size >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + size >= DATA_FILE_SIZE:
+            raise NoSpace
         self._pos += size
 
     def bytes_written(self):
@@ -53,50 +54,50 @@ class Appender:
     def write_byte(self, val):
         assert val < 256
         mm = self._start()
-        if self._pos + 1 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 1 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos] = val
         self._pos += 1
 
     def write_double(self, val):
         mm = self._start()
-        if self._pos + 8 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 8 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+8] = struct.pack('d', val)
         self._pos += 8
 
     def write_float(self, val):
         mm = self._start()
-        if self._pos + 4 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 4 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+4] = struct.pack('f', val)
         self._pos += 4
 
     def write_boolean(self, val):
         mm = self._start()
-        if self._pos + 1 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 1 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos] = 1 if val else 0
         self._pos += 1
 
     def write_short(self, val):
         mm = self._start()
-        if self._pos + 2 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 2 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+2] = struct.pack('h', val)
         self._pos += 2
 
     def write_long(self, val):
         mm = self._start()
-        if self._pos + 8 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 8 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+8] = struct.pack('q', val)
         self._pos += 8
 
     def write_int(self, val):
         mm = self._start()
-        if self._pos + 4 >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + 4 >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+4] = struct.pack('i', val)
         self._pos += 4
 
@@ -109,9 +110,9 @@ class Appender:
         l = len(encoded)
         self.write_stopbit(l)
         if self._pos - start_pos + l > size:
-            raise pychro.InvalidArgumentError
-        if self._pos + l >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+            raise InvalidArgumentError
+        if self._pos + l >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+l] = encoded
         self._pos = start_pos + size
 
@@ -120,8 +121,8 @@ class Appender:
         encoded = val.encode()
         l = len(encoded)
         self.write_stopbit(l)
-        if self._pos + l >= pychro.DATA_FILE_SIZE:
-            raise pychro.NoSpace
+        if self._pos + l >= DATA_FILE_SIZE:
+            raise NoSpace
         mm[self._pos:self._pos+l] = encoded
         self._pos += l
 
@@ -156,7 +157,7 @@ class Appender:
             # need to rewrite pos-start_pos bytes
             bytes = self._mm(self._filenum, self._tid)[self._start_pos:self._pos]
             if not self._chronicle._day_rollover(now_date):
-                raise pychro.PartialWriteLostOnRollover()
+                raise PartialWriteLostOnRollover()
             self._pos = length + 4
             self._start_pos = 4
             self._filenum = 0
@@ -167,7 +168,7 @@ class Appender:
 
         self._chronicle._set_index(self._tid, self._filenum, self._start_pos)
 
-        if self._pos + self._max_msg_size > pychro.DATA_FILE_SIZE:
+        if self._pos + self._max_msg_size > DATA_FILE_SIZE:
             self._pos = 0
             self._filenum += 1
             self._mm = None
@@ -179,7 +180,7 @@ class Appender:
 
 class VanillaChronicleWriter(VanillaChronicleReader):
     def __init__(self, base_dir, polling_interval=None,
-                 max_mapped_memory=pychro.DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
+                 max_mapped_memory=DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
                  thread_id_bits=None, utcnow=datetime.datetime.utcnow):
         try:
             os.makedirs(base_dir)
@@ -222,26 +223,26 @@ class VanillaChronicleWriter(VanillaChronicleReader):
     def _set_index(self, tid, data_filenum, offset):
         assert self._date == self._utcnow().date()
 
-        index_val = (tid << (64-self._thread_id_bits)) | (data_filenum << pychro.FILENUM_FROM_POS_SHIFT) | offset
+        index_val = (tid << (64-self._thread_id_bits)) | (data_filenum << FILENUM_FROM_POS_SHIFT) | offset
 
         if self._index == 0:
             self.set_end_index_today()
 
         while True:
-            index_filenum, index_offset = divmod(self._index*8, pychro.INDEX_FILE_SIZE)
+            index_filenum, index_offset = divmod(self._index*8, INDEX_FILE_SIZE)
             if len(self._index_mm) <= index_filenum:
                 self._open_next_index()
-            prev_index_val = pychro.read_mmap(self._index_mm[index_filenum], index_offset)
+            prev_index_val = _pychro.read_mmap(self._index_mm[index_filenum], index_offset)
             if prev_index_val != 0:
                 self._index += 1
                 continue
-            if prev_index_val != pychro.try_atomic_write_mmap(self._index_mm[index_filenum],
-                                                              index_offset, prev_index_val, index_val):
+            if prev_index_val != _pychro.try_atomic_write_mmap(self._index_mm[index_filenum],
+                                                               prev_index_val, index_val, index_offset):
                 continue
             break
 
     def _get_tid(self):
-        return get_thread_id() & self._thread_id_mask
+        return _pychro.get_thread_id() & self._thread_id_mask
         # thread_id_bits not large enough? have to live with this..
         # assert get_thread_id() == tid
 
@@ -249,15 +250,15 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         file_num = len(self._index_fh)
         fn = os.path.join(self._cycle_dir, 'index-%s' % file_num)
         fh = open(fn, 'a+b')
-        fh.truncate(pychro.INDEX_FILE_SIZE)
+        fh.truncate(INDEX_FILE_SIZE)
         fh.flush()
         self._index_fh += [fh]
-        self._index_mm += [pychro.open_write_mmap(fh, pychro.INDEX_FILE_SIZE)]
+        self._index_mm += [_pychro.open_write_mmap(fh, INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
         fn = os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum))
         fh = open(fn, 'a+b')
-        fh.truncate(pychro.DATA_FILE_SIZE)
+        fh.truncate(DATA_FILE_SIZE)
         return fh
 
     def _open_data_memory_map(self, filenum, thread):
@@ -266,8 +267,6 @@ class VanillaChronicleWriter(VanillaChronicleReader):
             fh = self._open_data_file(filenum, thread)
             self._data_fhs[(filenum, thread)] = fh
 
-        if pychro.PLATFORM_WINDOWS:
-            return mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_WRITE)
         while True:
             try:
                 return mmap.mmap(fh.fileno(), 0, prot=mmap.PROT_READ | mmap.PROT_WRITE)
