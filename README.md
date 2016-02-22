@@ -13,8 +13,7 @@ Pychro is a Python library for accessing 'Chronicle' message journals created by
 ### Current Status
 
 - Vanilla Chronicle reading/writing
-- Python 3.4
-- 64bit Windows, Linux or MacOS platform
+- Tested with CPython 3.4/5 on 64bit Linux
 - Primitive and unicode string fields
 - OpenHFT Chronicle-Queue default settings
 - Subscribe to remote Chronicles (e.g. served by a Java app)
@@ -71,9 +70,9 @@ It expects messages formed of an int, string and double.
 This level of functionality and performance serves me well in a number of projects. However there are a number of
  things which should be improved, including:
  
-- Proper distutils setup.py build, currently it packages some ad-hoc binaries I have built
-- Support non-default settings (e.g. assumes daily cycles)
 - More extensive coverage of the OpenHFT Chronicle functionality
+- Support non-default settings (e.g. assumes daily cycles)
+- Support other platforms, e.g. Windows or non-CPython
 
 Enjoy!
 
