@@ -33,7 +33,8 @@ import subprocess
 
 subprocess.check_call([sys.executable, 'setup.py', 'build'], cwd=os.path.split(os.path.dirname(__file__))[0])
 
-sys.path = [os.path.join(os.path.split(os.path.dirname(__file__))[0], 'build', 'lib.linux-x86_64-3.5')] + sys.path
+sys.path = [os.path.join(os.path.split(os.path.dirname(__file__))[0], 'build', 'lib.linux-x86_64-%s.%s'
+                         % (sys.version_info.major, sys.version_info.minor))] + sys.path
 
 import pychro
 import pychro._pychro
