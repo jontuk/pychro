@@ -35,6 +35,13 @@ class Appender:
         self._start_date = None
         self._mm = None
 
+    def get_bytes(self):
+        self._start()
+        return self._mm
+
+    def get_offset(self):
+        return self._pos
+
     def fill(self, size, ch):
         mm = self._start()
         if self._pos + size >= DATA_FILE_SIZE:

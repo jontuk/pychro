@@ -857,7 +857,7 @@ class TestReadWriteTypes(unittest.TestCase):
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path)
         self.read_chron = pychro.VanillaChronicleReader(self.tempdir.path)
 
-    def test2(self):
+    def test_basic(self):
         appender = self.write_chron.get_appender()
         appender.write_int(123)
         appender.finish()
@@ -869,8 +869,9 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(4, reader.get_length())
         self.assertEqual(123, reader.read_int())
 
-    def test1(self):
-        appender = self.write_chron.get_appender()
+    @staticmethod
+    def write_complex(chron):
+        appender = chron.get_appender()
         for i in range(256):
             appender.write_byte(i)
         for i in (0, 1, 10, 100, 1000, 10000):
@@ -891,9 +892,10 @@ class TestReadWriteTypes(unittest.TestCase):
         appender.write_byte(7)
         appender.write_string('\u1234')
         appender.finish()
-        self.write_chron.close()
+        chron.close()
 
-        reader = self.read_chron.next_reader()
+    def verify_complex(self, chron):
+        reader = chron.next_reader()
         self.assertEqual(343, reader.get_length())
         for i in range(256):
             self.assertEqual(i, reader.read_byte())
@@ -914,8 +916,35 @@ class TestReadWriteTypes(unittest.TestCase):
         self.assertEqual(1.600000023841858, reader.read_float())
         self.assertEqual(7, reader.read_byte())
         self.assertEqual('\u1234', reader.read_string())
+        
+    def test_complex(self):
+        self.write_complex(self.write_chron)
+        self.verify_complex(self.read_chron)
 
-    def testNegStopBit(self):
+    def test_copy(self):
+        self.write_complex(self.write_chron)
+        copy_tempdir = TempDir()
+        read_chron2 = pychro.VanillaChronicleReader(self.tempdir.path)
+
+        write_chron2 = pychro.VanillaChronicleWriter(copy_tempdir.path)
+        appender = write_chron2.get_appender()
+        while True:
+            try:
+                reader = read_chron2.next_reader()
+                wb = appender.get_bytes()
+                l = reader.get_length()
+                wb[appender.get_offset():appender.get_offset()+l] = \
+                    reader.get_bytes()[reader.get_offset():reader.get_offset()+l]
+                appender.advance(l)
+                appender.finish()
+            except pychro.NoData:
+                break
+
+        read_chron3 = pychro.VanillaChronicleReader(copy_tempdir.path)
+        self.verify_complex(read_chron3)
+
+
+    def test_neg_stop_bit(self):
         appender = self.write_chron.get_appender()
         try:
             appender.write_stopbit(-1)
