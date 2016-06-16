@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf8 -*-
 
 #
 #  Copyright 2015 Jon Turner 
@@ -963,6 +964,25 @@ class TestDateIndex(unittest.TestCase):
                          pychro.VanillaChronicleWriter.from_full_index(18187021835042826))
 
 
+def verify_test_message(cls, reader):
+    cmd = reader.read_int()
+    for j in range(cmd % 10):
+        s = j % 5
+        if s == 0:
+            cls.assertEqual(1/cmd, reader.read_double())
+        elif s == 1:
+            expected_size = cmd % (1024*10)
+            cls.assertEqual(len(reader.read_string()), expected_size)
+        elif s == 2:
+            cls.assertEqual((cmd % 256), reader.read_byte())
+        elif s == 3:
+            cls.assertEqual(cmd, (reader.read_long() >> 32))
+        elif s == 4:
+            cls.assertEqual('톩', reader.read_char())
+        else:
+            pass
+
+
 class TestPychroReader(unittest.TestCase):
     FILE_ZIPS = [
         ('a', os.path.abspath(os.path.join(os.path.dirname(__file__), '../../test-files-a.zip'))),
@@ -994,6 +1014,7 @@ class TestPychroReader(unittest.TestCase):
             (r'test-files-b/PychroTestChron3.Small2day', 20, 10, datetime.date(2015, 2, 21)),
             (r'test-files-b/PychroTestChron3.Small2day', 20, 10, None)
         ]
+
 
     def test_written_previous_day(self):
         reader = pychro.VanillaChronicleReader(r'test-files-a/PychroTestChron1.Small')
@@ -1062,23 +1083,7 @@ class TestPychroReader(unittest.TestCase):
         for i in range(2):
             while True:
                 try:
-                    reader = chronicle.next_reader()
-                    cmd = reader.read_int()
-
-                    for j in range(cmd % 10):
-                        s = j % 5
-                        if s == 0:
-                            reader.read_double()
-                        elif s == 1:
-                            reader.read_string()
-                        elif s == 2:
-                            reader.read_byte()
-                        elif s == 3:
-                            reader.read_long()
-                        elif s == 4:
-                            reader.read_char()
-                        else:
-                            pass
+                    verify_test_message(self, chronicle.next_reader())
                     msg_num += 1
                 except pychro.NoData:
                     break
@@ -1088,6 +1093,72 @@ class TestPychroReader(unittest.TestCase):
         self.assertEqual(msg_nums[1], num_msgs_today)
         self.assertEqual(msg_nums[0], num_msgs_total)
         chronicle.close()
+
+
+class TestRandomAccess(unittest.TestCase):
+    CHRON_PATH = r'test-files-a/PychroTestChron3.Large'
+    CHRON_DATE = datetime.date(2015, 2, 21)
+
+    def test_creation(self):
+        for i in range(1000):
+            seq = random.randint(0, 100000-1)
+            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+            reader = chron.next_reader()
+            self.assertEqual(idx+1, chron.get_index())
+            verify_test_message(self, reader)
+
+    def test_set_index(self):
+        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
+        for i in range(1000):
+            seq = random.randint(0, 100000 - 1)
+            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            chron.set_index(idx)
+            reader = chron.next_reader()
+            self.assertEqual(idx + 1, chron.get_index())
+            verify_test_message(self, reader)
+
+
+class TestXLargeRandomAccess(unittest.TestCase):
+    CHRON_PATH = r'test-files-d/PychroTestChron4.XLarge'
+    CHRON_DATE = datetime.date(2016, 6, 16)
+
+    def disabled_test_one_creation(self):
+        seq = 2000000
+        idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+        reader = chron.next_reader()
+        self.assertEqual(idx+1, chron.get_index())
+        verify_test_message(self, reader)
+
+    def disabled_test_one_set_index(self):
+        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
+        seq = 2000000
+        idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+        chron.set_index(idx)
+        reader = chron.next_reader()
+        self.assertEqual(idx + 1, chron.get_index())
+        verify_test_message(self, reader)
+
+    def disabled_test_creation(self):
+        for i in range(1000):
+            seq = random.randint(0, 3000000-1)
+            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+            reader = chron.next_reader()
+            self.assertEqual(idx+1, chron.get_index())
+            verify_test_message(self, reader)
+
+    def disabled_test_set_index(self):
+        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
+        for i in range(1000):
+            seq = random.randint(0, 3000000-1)
+            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            chron.set_index(idx)
+            reader = chron.next_reader()
+            self.assertEqual(idx + 1, chron.get_index())
+            verify_test_message(self, reader)
+
 
 
 class TestGetIndexChronicle(unittest.TestCase):
@@ -1118,5 +1189,7 @@ if __name__ == '__main__':
                       # these make sure that some options that are not applicable
                       # remain hidden from the help menu.
                       failfast=False, buffer=False, catchbreak=False)
+        sys.exit(0)
     except ImportError:
-        unittest.main()
+        pass
+    unittest.main()
