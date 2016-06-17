@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 
 setup(name='pychro',
-      version='0.8.4',
+      version='0.8.5',
       packages=['pychro'],
       author='Jon Turner',
       description='Memory-mapped message journal',
