@@ -1102,58 +1102,72 @@ class TestRandomAccess(unittest.TestCase):
     def test_creation(self):
         for i in range(1000):
             seq = random.randint(0, 100000-1)
-            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
-            chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+            idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
+            chron = pychro.VanillaChronicleReader(self.CHRON_PATH, full_index=idx, thread_id_bits=16)
             reader = chron.next_reader()
             self.assertEqual(idx+1, chron.get_index())
             verify_test_message(self, reader)
 
     def test_set_index(self):
-        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
+        chron = pychro.VanillaChronicleReader(self.CHRON_PATH, thread_id_bits=16)
         for i in range(1000):
             seq = random.randint(0, 100000 - 1)
-            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
             chron.set_index(idx)
             reader = chron.next_reader()
             self.assertEqual(idx + 1, chron.get_index())
             verify_test_message(self, reader)
 
 
+# Tests on locally created large chronicle. Hence no thread_id_bits so takes machine default.
+# File too large (~16GB) to put into source control. TODO: Build to create automatically by running java-test-setup.
 class TestXLargeRandomAccess(unittest.TestCase):
     CHRON_PATH = r'test-files-d/PychroTestChron4.XLarge'
     CHRON_DATE = datetime.date(2016, 6, 16)
 
-    def disabled_test_one_creation(self):
-        seq = 2000000
-        idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
-        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+    def test_one_creation(self):
+        if not os.path.isdir(self.CHRON_PATH):
+            return
+
+        seq = 2100000
+        idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
+        chron = pychro.VanillaChronicleReader(self.CHRON_PATH, full_index=idx)
         reader = chron.next_reader()
         self.assertEqual(idx+1, chron.get_index())
         verify_test_message(self, reader)
 
-    def disabled_test_one_set_index(self):
-        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
-        seq = 2000000
-        idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+    def test_one_set_index(self):
+        if not os.path.isdir(self.CHRON_PATH):
+            return
+
+        chron = pychro.VanillaChronicleReader(self.CHRON_PATH)
+        seq = 2100000
+        idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
         chron.set_index(idx)
         reader = chron.next_reader()
         self.assertEqual(idx + 1, chron.get_index())
         verify_test_message(self, reader)
 
-    def disabled_test_creation(self):
+    def test_many_creation(self):
+        if not os.path.isdir(self.CHRON_PATH):
+            return
+
         for i in range(1000):
             seq = random.randint(0, 3000000-1)
-            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
-            chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, full_index=idx, thread_id_bits=16)
+            idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
+            chron = pychro.VanillaChronicleReader(self.CHRON_PATH, full_index=idx)
             reader = chron.next_reader()
             self.assertEqual(idx+1, chron.get_index())
             verify_test_message(self, reader)
 
-    def disabled_test_set_index(self):
-        chron = pychro.VanillaChronicleReader(TestRandomAccess.CHRON_PATH, thread_id_bits=16)
+    def test_many_set_index(self):
+        if not os.path.isdir(self.CHRON_PATH):
+            return
+
+        chron = pychro.VanillaChronicleReader(self.CHRON_PATH)
         for i in range(1000):
             seq = random.randint(0, 3000000-1)
-            idx = pychro.VanillaChronicleReader.to_full_index(TestRandomAccess.CHRON_DATE, seq)
+            idx = pychro.VanillaChronicleReader.to_full_index(self.CHRON_DATE, seq)
             chron.set_index(idx)
             reader = chron.next_reader()
             self.assertEqual(idx + 1, chron.get_index())

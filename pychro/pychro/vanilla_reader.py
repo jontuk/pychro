@@ -184,7 +184,7 @@ class VanillaChronicleReader:
         index_offset *= 8
         index_filenum = index_offset >> FILENUM_FROM_INDEX_SHIFT
         index_offset &= INDEX_OFFSET_MASK
-        if index_filenum >= len(self._index_mm):
+        while index_filenum >= len(self._index_mm):
             try:
                 self._open_next_index()
             except EndOfIndexfile:
