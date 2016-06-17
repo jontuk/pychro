@@ -163,21 +163,18 @@ class VanillaChronicleReader:
         raise NoData
 
     def _try_next_date(self):
-        _next = False
         if not self._cycle_dir:
             self._try_set_cycle_dir()
         cur_date = os.path.split(self._cycle_dir)[1]
         for f in sorted(os.listdir(self._base_dir)):
-            if _next:
-                if not re.match('^[0-9]{8}$', f):
-                    continue
-                fp = os.path.join(self._base_dir, f)
-                if not os.path.isdir(fp):
-                    continue
+            if not re.match('^[0-9]{8}$', f):
+                continue
+            fp = os.path.join(self._base_dir, f)
+            if not os.path.isdir(fp):
+                continue
+            if f > cur_date:
                 self._update_cycle_dir(fp)
                 return True
-            if f == cur_date:
-            	_next = True
         return False
 
     def _get_index_value(self, index_offset):

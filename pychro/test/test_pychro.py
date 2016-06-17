@@ -1094,6 +1094,21 @@ class TestPychroReader(unittest.TestCase):
         self.assertEqual(msg_nums[0], num_msgs_total)
         chronicle.close()
 
+    def test_rolls_day(self):
+        chronicle = pychro.VanillaChronicleReader(r'test-files-b/PychroTestChron3.Small2day',
+                                                  thread_id_bits=16,
+                                                  polling_interval=None,
+                                                  full_index=1)
+        i = 0
+        while True:
+            try:
+                verify_test_message(self, chronicle.next_reader())
+                i += 1
+            except pychro.NoData:
+                break
+        self.assertEqual(18128747718770698, chronicle.get_index())
+        self.assertEqual(20, i)
+
 
 class TestRandomAccess(unittest.TestCase):
     CHRON_PATH = r'test-files-a/PychroTestChron3.Large'
