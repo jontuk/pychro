@@ -256,8 +256,8 @@ class VanillaChronicleReader:
                 self._data_fhs.popitem()[1].close()
             except KeyError:
                 break
-
-        [_pychro.close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm]
+        
+        [_pychro.close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm and _pychro and _pychro.close_mmap]
         self._index_mm = []
 
         [fh.close() for fh in self._index_fh if fh]
