@@ -1189,7 +1189,6 @@ class TestXLargeRandomAccess(unittest.TestCase):
             verify_test_message(self, reader)
 
 
-
 class TestGetIndexChronicle(unittest.TestCase):
     def setUp(self):
         self.tempdir = TempDir()
@@ -1208,8 +1207,21 @@ class TestGetIndexChronicle(unittest.TestCase):
         reader = pychro.VanillaChronicleReader(self.tempdir.path)
         self.assertEqual(idx, reader.get_index())
 
-    def tearDown(self):
-        pass
+
+class TestWith(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = TempDir()
+
+    def test_with(self):
+        with pychro.VanillaChronicleWriter(self.tempdir.path) as writer:
+            appender = writer.get_appender()
+            appender.write_byte(7)
+            appender.finish()
+
+        with pychro.VanillaChronicleReader(self.tempdir.path) as chron:
+            reader = chron.next_reader()
+            assert reader.read_byte() == 7
+
 
 if __name__ == '__main__':
     try:

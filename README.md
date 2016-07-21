@@ -35,14 +35,13 @@ index by calling appender.finish().
     tempdir = tempfile.mkdtemp()
     print('Chronicle location: %s' % tempdir)
 
-    write_chron = pychro.VanillaChronicleWriter(tempdir)
-    appender = write_chron.get_appender()
-    for i in range(1, 4):
-        appender.write_int(i)
-        appender.write_string('1/%s=%s' % (i, 1/i))
-        appender.write_double(1/i)
-        appender.finish()
-    write_chron.close()
+    with pychro.VanillaChronicleWriter(tempdir) as write_chron:
+        appender = write_chron.get_appender()
+        for i in range(1, 4):
+            appender.write_int(i)
+            appender.write_string('1/%s=%s' % (i, 1/i))
+            appender.write_double(1/i)
+            appender.finish()
     
 #### Reading
 
@@ -51,17 +50,16 @@ and since no polling_interval has been provided either will throw pychro.NoData 
 
 It expects messages formed of an int, string and double.
 
-    read_chron = pychro.VanillaChronicleReader(chron_dir)
-    while True:
-        print('Next read index:%s' % read_chron.get_index())
-        try:
-            reader = read_chron.next_reader()
-        except pychro.NoData:
-            break
-        print(reader.read_int())
-        print(reader.read_string())
-        print(reader.read_double())
-    read_chron.close()
+    with pychro.VanillaChronicleReader(chron_dir) as read_chron:
+        while True:
+            print('Next read index:%s' % read_chron.get_index())
+            try:
+                reader = read_chron.next_reader()
+            except pychro.NoData:
+                break
+            print(reader.read_int())
+            print(reader.read_string())
+            print(reader.read_double())
 
 
 
