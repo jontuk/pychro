@@ -263,7 +263,11 @@ class VanillaChronicleReader:
             except KeyError:
                 break
         
-        [_pychro.close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm and _pychro and _pychro.close_mmap]
+        try:
+            [_pychro.close_mmap(mm, self._index_file_size) for mm in self._index_mm if mm and _pychro and _pychro.close_mmap]
+        except TypeError:
+            pass
+
         self._index_mm = []
 
         [fh.close() for fh in self._index_fh if fh]
