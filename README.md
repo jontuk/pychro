@@ -13,10 +13,12 @@ Pychro is a Python library for accessing 'Chronicle' message journals created by
 ### Current Status
 
 - Vanilla Chronicle reading/writing
-- Tested with CPython 3.4/5 on 64bit Linux
+- Tested with CPython 3.8+ on 64bit Linux
+- Supports Python 3.8, 3.9, 3.10, 3.11, 3.12, and 3.13
 - Primitive and unicode string fields
 - OpenHFT Chronicle-Queue default settings
 - Subscribe to remote Chronicles (e.g. served by a Java app)
+- Modern Python best practices with type hints and f-strings
 
 ### Usage
 

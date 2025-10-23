@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+from typing import Optional, Callable, Tuple, Dict, List, OrderedDict as OrderedDictType
 from .common import *
 from . import _pychro
 
@@ -38,9 +40,11 @@ class VanillaChronicleReader:
     # close() resets to chronicle, releasing all resources. Reading will begin again from the start.
     #
 
-    def __init__(self, base_dir, polling_interval=None, date=None, full_index=None,
-                 max_mapped_memory=DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
-                 thread_id_bits=None, utcnow=datetime.datetime.utcnow):
+    def __init__(self, base_dir: str, polling_interval: Optional[float] = None,
+                 date: Optional[datetime.date] = None, full_index: Optional[int] = None,
+                 max_mapped_memory: int = DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
+                 thread_id_bits: Optional[int] = None,
+                 utcnow: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(datetime.timezone.utc)):
         self._index_file_size = INDEX_FILE_SIZE
         self._utcnow = utcnow
         self._thread_id_bits = thread_id_bits
@@ -50,9 +54,9 @@ class VanillaChronicleReader:
 
         self._base_dir = base_dir
         self._index_data_offset_bits = 64 - self._thread_id_bits
-        self._thread_id_idx_mask = eval('0b'+'1'*self._thread_id_bits+'0'*self._index_data_offset_bits)
-        self._thread_id_mask = eval('0b'+'1'*self._thread_id_bits)
-        self._index_data_offset_mask = eval('0b'+'0'*self._thread_id_bits+'1'*self._index_data_offset_bits)
+        self._thread_id_idx_mask = ((1 << self._thread_id_bits) - 1) << self._index_data_offset_bits
+        self._thread_id_mask = (1 << self._thread_id_bits) - 1
+        self._index_data_offset_mask = (1 << self._index_data_offset_bits) - 1
         self._max_maps = (max_mapped_memory//DATA_FILE_SIZE) if max_mapped_memory else None
         if self._max_maps is not None and self._max_maps < 1:
             raise ConfigError('max_mapped_memory must be >= 64MB')
@@ -81,12 +85,12 @@ class VanillaChronicleReader:
             except NoData:
                 return
         else:
-            self._update_cycle_dir(os.path.join(base_dir, '%4d%02d%02d' % (date.year, date.month, date.day)))
+            self._update_cycle_dir(os.path.join(base_dir, f'{date.year:04d}{date.month:02d}{date.day:02d}'))
         if index:
             self._index = index
 
     def __str__(self):
-        return '<VanillaChronicleReader dir:%s idx:%s>' % (self._cycle_dir, self._index)
+        return f'<VanillaChronicleReader dir:{self._cycle_dir} idx:{self._index}>'
 
     def __del__(self):
         self.close()
@@ -98,7 +102,7 @@ class VanillaChronicleReader:
         self.close()
 
     @staticmethod
-    def get_thread_id_bits(pid_max):
+    def get_thread_id_bits(pid_max: int) -> int:
         i = 0
         pid_max -= 1
         while pid_max:
@@ -107,12 +111,12 @@ class VanillaChronicleReader:
         return i
 
     @staticmethod
-    def to_full_index(date, index):
+    def to_full_index(date: datetime.date, index: int) -> int:
         return index + ((int(datetime.datetime(date.year, date.month, date.day,
                         tzinfo=datetime.timezone.utc).timestamp())//86400) << CYCLE_INDEX_POS)
 
     @staticmethod
-    def from_full_index(full_index):
+    def from_full_index(full_index: int) -> Tuple[datetime.date, int]:
         index = full_index & INDEX_OFFSET_MASK
         date = datetime.datetime.fromtimestamp((full_index >> CYCLE_INDEX_POS)*86400,
                                                tz=datetime.timezone.utc).date()
@@ -133,7 +137,7 @@ class VanillaChronicleReader:
         if not self._cycle_dir:
             self._try_set_cycle_dir()
         try:
-            self._index_fh += [open(os.path.join(self._cycle_dir, 'index-%s' % file_num), 'rb')]
+            self._index_fh += [open(os.path.join(self._cycle_dir, f'index-{file_num}'), 'rb')]
         except FileNotFoundError:
             raise EndOfIndexfile
         self._index_mm += [_pychro.open_read_mmap(self._index_fh[-1], INDEX_FILE_SIZE)]
@@ -143,7 +147,7 @@ class VanillaChronicleReader:
             if not self._try_next_date():
                 raise NoData
         try:
-            return open(os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum)), 'rb')
+            return open(os.path.join(self._cycle_dir, f'data-{thread}-{filenum}'), 'rb')
         except FileNotFoundError:
             raise CorruptData
 
@@ -155,7 +159,7 @@ class VanillaChronicleReader:
         return mmap.mmap(fh.fileno(), 0, prot=mmap.PROT_READ)
 
     def _try_set_cycle_dir(self, date=None):
-        date_str = '%4d%02d%02d' % (date.year, date.month, date.day) if date else None
+        date_str = f'{date.year:04d}{date.month:02d}{date.day:02d}' if date else None
         for f in sorted(os.listdir(self._base_dir)):
             if date_str and date_str > f:
                 continue
@@ -279,7 +283,7 @@ class VanillaChronicleReader:
         self._cycle_dir = None
         self._full_index_base = None
 
-    def get_index(self):
+    def get_index(self) -> int:
         if self._full_index_base is None:
             raise NoData
         return self._index + self._full_index_base
@@ -288,7 +292,7 @@ class VanillaChronicleReader:
         self._next_position()
         return self._index + self._full_index_base
 
-    def get_date(self):
+    def get_date(self) -> Optional[datetime.date]:
         return self._date
 
     def get_raw_bytes(self, filenum, pos, thread):
@@ -342,7 +346,7 @@ class VanillaChronicleReader:
                     break
         return high_idx + self._full_index_base
 
-    def next_reader(self):
+    def next_reader(self) -> RawByteReader:
         return RawByteReader(*self.next_raw_bytes())
 
 
@@ -358,7 +362,7 @@ class RemoteChronicleReader:
     SUBSCRIBE = 1
 
     # where in 'start', 'end'/'now', index or date (YYYY-MM-DD)
-    def __init__(self, host, port, where):
+    def __init__(self, host: str, port: int, where: str):
         self._host = host
         self._port = port
         self._idx = None
@@ -374,14 +378,13 @@ class RemoteChronicleReader:
             except ValueError:
                 try:
                     if where == 'today':
-                        date = datetime.datetime.utcnow().date()
+                        date = datetime.datetime.now(datetime.timezone.utc).date()
                     else:
                         date = datetime.date(*map(int, where.split('-')))
                     dt = datetime.datetime(date.year, date.month, date.day, tzinfo=datetime.timezone.utc)
                     self._startidx = (int(dt.timestamp()) << CYCLE_INDEX_POS)*86400
                 except Exception as e:
-                    raise InvalidArgumentError('Unable to determine start position for remote tailer from %s'
-                                                      % where)
+                    raise InvalidArgumentError(f'Unable to determine start position for remote tailer from {where}')
 
         self._soc = socket.create_connection((self._host, self._port))
         # subscribe to -1 start -2 end
@@ -397,15 +400,15 @@ class RemoteChronicleReader:
                     self.next_reader()
                 return
             else:
-                raise Exception('In-Sync not received as expected (length:%s, index:%s)' % (length, index))
+                raise Exception(f'In-Sync not received as expected (length:{length}, index:{index})')
 
     def __str__(self):
-        return '<RemoteChronicleReader host:%s port:%s idx:%s>' % (self._host, self._port, self._idx)
+        return f'<RemoteChronicleReader host:{self._host} port:{self._port} idx:{self._idx}>'
 
-    def get_index(self):
+    def get_index(self) -> Optional[int]:
         return self._idx
 
-    def close(self):
+    def close(self) -> None:
         if self._soc:
             self._soc.close()
             self._soc = None
@@ -413,7 +416,7 @@ class RemoteChronicleReader:
     def __del__(self):
         self.close()
 
-    def next_reader(self):
+    def next_reader(self) -> RawByteReader:
         while True:
 
             hdr_chunks = []
@@ -437,17 +440,17 @@ class RemoteChronicleReader:
 class RawByteReader:
     __slots__ = ['_offset', '_bytes']
 
-    def __init__(self, offset, _bytes):
+    def __init__(self, offset: int, _bytes: bytes):
         self._offset = offset
         self._bytes = _bytes
 
-    def get_length(self):
+    def get_length(self) -> int:
         return ~struct.unpack('i', self._bytes[self._offset-4:self._offset])[0]
 
-    def get_offset(self):
+    def get_offset(self) -> int:
         return self._offset
 
-    def get_bytes(self):
+    def get_bytes(self) -> bytes:
         return self._bytes
 
     def set_offset(self, offset):
@@ -456,27 +459,27 @@ class RawByteReader:
     def advance(self, num_bytes):
         self._offset += num_bytes
 
-    def read_int(self):
+    def read_int(self) -> int:
         ret = struct.unpack('i', self._bytes[self._offset:self._offset+4])[0]
         self._offset += 4
         return ret
 
-    def read_short(self):
+    def read_short(self) -> int:
         ret = struct.unpack('h', self._bytes[self._offset:self._offset+2])[0]
         self._offset += 2
         return ret
 
-    def read_long(self):
+    def read_long(self) -> int:
         ret = struct.unpack('q', self._bytes[self._offset:self._offset+8])[0]
         self._offset += 8
         return ret
 
-    def read_double(self):
+    def read_double(self) -> float:
         ret = struct.unpack('d', self._bytes[self._offset:self._offset+8])[0]
         self._offset += 8
         return ret
 
-    def read_float(self):
+    def read_float(self) -> float:
         ret = struct.unpack('f', self._bytes[self._offset:self._offset+4])[0]
         self._offset += 4
         return ret
@@ -487,12 +490,12 @@ class RawByteReader:
         self._offset += 2
         return ret
 
-    def read_byte(self):
+    def read_byte(self) -> int:
         ret = self._bytes[self._offset]
         self._offset += 1
         return ret
 
-    def read_boolean(self):
+    def read_boolean(self) -> bool:
         ret = self._bytes[self._offset]
         self._offset += 1
         return ret != 0
@@ -507,7 +510,7 @@ class RawByteReader:
             if (b & 0x80) == 0:
                 return value
 
-    def read_string(self):
+    def read_string(self) -> str:
         l = self.read_stopbit()
         ret = self._bytes[self._offset: self._offset + l].decode()
         self._offset += l

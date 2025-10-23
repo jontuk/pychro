@@ -15,9 +15,12 @@
 #
 
 
+from __future__ import annotations
+from typing import Optional, Callable
 from .common import *
 from . import _pychro
 
+import datetime
 import struct
 import os
 import mmap
@@ -186,9 +189,10 @@ class Appender:
 
 
 class VanillaChronicleWriter(VanillaChronicleReader):
-    def __init__(self, base_dir, polling_interval=None,
-                 max_mapped_memory=DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
-                 thread_id_bits=None, utcnow=datetime.datetime.utcnow):
+    def __init__(self, base_dir: str, polling_interval: Optional[float] = None,
+                 max_mapped_memory: int = DEFAULT_MAX_MAPPED_MEMORY_PER_READER,
+                 thread_id_bits: Optional[int] = None,
+                 utcnow: Callable[[], datetime.datetime] = lambda: datetime.datetime.now(datetime.timezone.utc)):
         try:
             os.makedirs(base_dir)
         except FileExistsError:
@@ -198,7 +202,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
                          utcnow=utcnow)
         self._positions = dict()
         self._update_date_and_index_base(self._utcnow().date())
-        todays_dir = os.path.join(self._base_dir, '%4d%02d%02d' % (self._date.year, self._date.month, self._date.day))
+        todays_dir = os.path.join(self._base_dir, f'{self._date.year:04d}{self._date.month:02d}{self._date.day:02d}')
         if self._cycle_dir != todays_dir:
             self._cycle_dir = todays_dir
             try:
@@ -212,8 +216,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
 
     # Returns whether rollover succeeded or not
     def _day_rollover(self, new_date):
-        todays_dir = os.path.join(self._base_dir, '%4d%02d%02d'
-                                  % (new_date.year, new_date.month, new_date.day))
+        todays_dir = os.path.join(self._base_dir, f'{new_date.year:04d}{new_date.month:02d}{new_date.day:02d}')
         try:
             os.makedirs(todays_dir)
             ret = True
@@ -255,7 +258,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
 
     def _open_next_index(self):
         file_num = len(self._index_fh)
-        fn = os.path.join(self._cycle_dir, 'index-%s' % file_num)
+        fn = os.path.join(self._cycle_dir, f'index-{file_num}')
         fh = open(fn, 'a+b')
         fh.truncate(INDEX_FILE_SIZE)
         fh.flush()
@@ -263,7 +266,7 @@ class VanillaChronicleWriter(VanillaChronicleReader):
         self._index_mm += [_pychro.open_write_mmap(fh, INDEX_FILE_SIZE)]
 
     def _open_data_file(self, filenum, thread):
-        fn = os.path.join(self._cycle_dir, 'data-%s-%s' % (thread, filenum))
+        fn = os.path.join(self._cycle_dir, f'data-{thread}-{filenum}')
         fh = open(fn, 'a+b')
         fh.truncate(DATA_FILE_SIZE)
         return fh
@@ -283,9 +286,9 @@ class VanillaChronicleWriter(VanillaChronicleReader):
                 # A thread lazily creating new data and index files would be a good optimisation.
 
     def __str__(self):
-        return '<VanillaChronicleWriter dir:%s idx:%s tid:%s>' % (self._cycle_dir, self._index, self._get_tid())
+        return f'<VanillaChronicleWriter dir:{self._cycle_dir} idx:{self._index} tid:{self._get_tid()}>'
 
-    def get_appender(self):
+    def get_appender(self) -> Appender:
         tid = self._get_tid()
 
         filenum_pos = self._positions.get(tid)

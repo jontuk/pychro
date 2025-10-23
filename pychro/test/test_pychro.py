@@ -34,8 +34,7 @@ import subprocess
 
 subprocess.check_call([sys.executable, 'setup.py', 'build'], cwd=os.path.split(os.path.dirname(__file__))[0])
 
-sys.path = [os.path.join(os.path.split(os.path.dirname(__file__))[0], 'build', 'lib.linux-x86_64-%s.%s'
-                         % (sys.version_info.major, sys.version_info.minor))] + sys.path
+sys.path = [os.path.join(os.path.split(os.path.dirname(__file__))[0], 'build', f'lib.linux-x86_64-{sys.version_info.major}.{sys.version_info.minor}')] + sys.path
 
 import pychro
 import pychro._pychro
@@ -222,13 +221,13 @@ class TestThreadIdBits(unittest.TestCase):
 class TestWriteOverMidnight(unittest.TestCase):
     @staticmethod
     def mock_utcnow():
-        dt = TestWriteOverMidnight.DT_START + (datetime.datetime.utcnow() - TestWriteOverMidnight.DT_BASE)
+        dt = TestWriteOverMidnight.DT_START + (datetime.datetime.now(datetime.timezone.utc) - TestWriteOverMidnight.DT_BASE)
         return dt
 
     def setUp(self):
         self.tempdir = TempDir()
-        TestWriteOverMidnight.DT_START = datetime.datetime(2015, 1, 1, 23, 59, 56)
-        TestWriteOverMidnight.DT_BASE = datetime.datetime.utcnow()
+        TestWriteOverMidnight.DT_START = datetime.datetime(2015, 1, 1, 23, 59, 56, tzinfo=datetime.timezone.utc)
+        TestWriteOverMidnight.DT_BASE = datetime.datetime.now(datetime.timezone.utc)
 
     def test_new_appenders(self):
         self.write_chron = pychro.VanillaChronicleWriter(self.tempdir.path,
@@ -372,7 +371,7 @@ class TestWriteOverMidnight(unittest.TestCase):
         self.assertEqual(len(ints), self.num_threads*self.num_msgs)
         for i in range(self.num_threads):
             for j in range(self.num_msgs):
-                self.assertEqual(ints.__contains__((i+1)*1000+j), True)
+                self.assertIn((i+1)*1000+j, ints)
         self.read_chron.close()
 
 
@@ -386,7 +385,7 @@ class MultiWriteChronThread(threading.Thread):
     def run(self):
         for i in range(self.n):
             a = self.write_chron.get_appender()
-            s = '%s=%s(%s)' % (self.id, i, str(random.random())*random.randint(0, 30))
+            s = f'{self.id}={i}({str(random.random())*random.randint(0, 30)})'
             a.write_string(s)
             a.finish()
 
@@ -594,20 +593,20 @@ class TestChronPerf(unittest.TestCase):
 
     def test_perf_str(self):
         strings = [str(random.random())*10 for _ in range(self.n)]
-        print('Average length %s' % (sum(map(len, strings))/self.n))
+        print(f'Average length {sum(map(len, strings))/self.n}')
         appender = self.write_chron.get_appender()
         t = time.time()
         for i in range(self.n):
             appender.write_string(strings[i])
             appender.finish()
         t = time.time() - t
-        print('Write %.2f strings/s' % (self.n/t))
+        print(f'Write {self.n/t:.2f} strings/s')
         t = time.time()
         for i in range(self.n):
             reader = self.read_chron.next_reader()
             reader.read_string()
         t = time.time() - t
-        print('Read %.2f strings/s' % (self.n/t))
+        print(f'Read {self.n/t:.2f} strings/s')
 
     def test_perf_int(self):
         appender = self.write_chron.get_appender()
@@ -616,13 +615,13 @@ class TestChronPerf(unittest.TestCase):
             appender.write_int(i)
             appender.finish()
         t = time.time() - t
-        print('Write %.2f ints/s' % (self.n/t))
+        print(f'Write {self.n/t:.2f} ints/s')
         t = time.time()
         for i in range(self.n):
             reader = self.read_chron.next_reader()
             reader.read_int()
         t = time.time() - t
-        print('Read %.2f ints/s' % (self.n/t))
+        print(f'Read {self.n/t:.2f} ints/s')
 
     def test_perf_mixed(self):
         appender = self.write_chron.get_appender()
@@ -636,7 +635,7 @@ class TestChronPerf(unittest.TestCase):
             appender.write_int(-i)
             appender.finish()
         t = time.time() - t
-        print('Write %.2f msgs/s' % (self.n/t))
+        print(f'Write {self.n/t:.2f} msgs/s')
         t = time.time()
         for i in range(self.n):
             reader = self.read_chron.next_reader()
@@ -647,7 +646,7 @@ class TestChronPerf(unittest.TestCase):
             self.assertEqual('Hello'*10, reader.read_fixed_string(70))
             self.assertEqual(-i, reader.read_int())
         t = time.time() - t
-        print('Read %.2f msgs/s' % (self.n/t))
+        print(f'Read {self.n/t:.2f} msgs/s')
 
     def tearDown(self):
         self.write_chron.close()
@@ -1035,7 +1034,7 @@ class TestPychroReader(unittest.TestCase):
             t = time.time()
             self.do_index_test(fn, msgs_total, _date)
             t = time.time() - t
-            print('test_indexes: %s with msgs=%s, took %ss' % (fn, msgs_total, t))
+            print(f'test_indexes: {fn} with msgs={msgs_total}, took {t}s')
 
     def do_index_test(self, path, num_msgs, _date):
         chronicle = pychro.VanillaChronicleReader(path, thread_id_bits=16, date=_date)
@@ -1066,7 +1065,7 @@ class TestPychroReader(unittest.TestCase):
                     t = time.time()
                     self.do_file_test(fn, msgs_total, msgs_today, max_mem, _date)
                     t = time.time() - t
-                    print('test_files: %s with msgs=%s, max_mem=%s took %ss' % (fn, msgs_total, max_mem, t))
+                    print(f'test_files: {fn} with msgs={msgs_total}, max_mem={max_mem} took {t}s')
 
     def do_file_test(self, path, num_msgs_total, num_msgs_today, max_mem, _date):
         chronicle = pychro.VanillaChronicleReader(path,
